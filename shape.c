@@ -492,22 +492,35 @@ static void drawArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
     }
 }
 
-static void drawText(cairo_t *cr, gdouble x, gdouble y, const char *text,
-        const char *font, const GdkRGBA *textColor)
+static void drawText(cairo_t *cr, const Shape *shape,
+        gdouble posFactor, gboolean drawBackground)
 {
     PangoLayout *layout;
     PangoFontDescription *desc;
     int width, height;
+    gdouble xPaint, yPaint;
 
+    if( shape->params.text == NULL || shape->params.text[0] == '\0' )
+        return;
+    xPaint = shape->xRef + posFactor * shape->ptEnd.x;
+    yPaint = shape->yRef + posFactor * shape->ptEnd.y;
     layout = pango_cairo_create_layout(cr);
-    pango_layout_set_text(layout, text, -1);
-    desc = pango_font_description_from_string(font);
+    pango_layout_set_text(layout, shape->params.text, -1);
+    desc = pango_font_description_from_string(shape->params.fontName);
     pango_layout_set_font_description (layout, desc);
     pango_font_description_free (desc);
     pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
     pango_layout_get_pixel_size(layout, &width, &height);
-    gdk_cairo_set_source_rgba(cr, textColor);
-    cairo_move_to(cr, x - width / 2, y - height / 2);
+    if( drawBackground && shape->params.fillColor.alpha != 0.0 ) {
+        gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
+        cairo_rectangle(cr, xPaint - 0.5 * width - shape->params.thickness,
+                yPaint - 0.5 * height - shape->params.thickness,
+                width + 2 * shape->params.thickness,
+                height + 2 * shape->params.thickness);
+        cairo_fill(cr);
+    }
+    gdk_cairo_set_source_rgba(cr, &shape->params.textColor);
+    cairo_move_to(cr, xPaint - 0.5 * width, yPaint - 0.5 * height);
     pango_cairo_show_layout(cr, layout);
     g_object_unref(layout);
     cairo_new_path(cr);
@@ -581,6 +594,7 @@ void shape_draw(const Shape *shape, cairo_t *cr)
                 cairo_close_path(cr);
             }
             strokeAndFillShape(shape, cr);
+            drawText(cr, shape, 2.0 / 3.0, FALSE);
         }
         break;
     case ST_RECT:
@@ -617,6 +631,7 @@ void shape_draw(const Shape *shape, cairo_t *cr)
                     0.5 * G_PI, G_PI);
         cairo_close_path(cr);
         strokeAndFillShape(shape, cr);
+        drawText(cr, shape, 0.5, FALSE);
         break;
     case ST_OVAL:
         if( shape->ptEnd.x != 0 && shape->ptEnd.y != 0 ) {
@@ -639,15 +654,11 @@ void shape_draw(const Shape *shape, cairo_t *cr)
                     0, 2 * G_PI);
             cairo_restore(cr);
             strokeAndFillShape(shape, cr);
+            drawText(cr, shape, 0.5, FALSE);
         }
         break;
     case ST_TEXT:
-        if( shape->params.text && shape->params.text[0] ) {
-            drawText(cr, shape->xRef + shape->ptEnd.x,
-                    shape->yRef + shape->ptEnd.y,
-                    shape->params.text, shape->params.fontName,
-                    &shape->params.strokeColor);
-        }
+        drawText(cr, shape, 1.0, TRUE);
         break;
     case ST_ARROW:
         drawArrow(cr, shape->xRef, shape->yRef, shape->ptEnd.x, shape->ptEnd.y,

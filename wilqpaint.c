@@ -120,8 +120,7 @@ static void adjustBackgroundColorControl(void)
     gtk_color_chooser_set_rgba(bgColorButton, &color);
 }
 
-static void setControlsFromShapeParams(ShapeType shapeType,
-        const ShapeParams *shapeParams)
+static void setControlsFromShapeParams(const ShapeParams *shapeParams)
 {
     GtkColorChooser *colorBtn;
     GtkTextView *textView;
@@ -132,30 +131,29 @@ static void setControlsFromShapeParams(ShapeType shapeType,
     colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
                 "strokeColor"));
     gtk_color_chooser_set_rgba(colorBtn, &shapeParams->strokeColor);
-    if( shapeType == ST_TEXT ) {
-        textView = GTK_TEXT_VIEW(gtk_builder_get_object(builder, "text"));
-        textBuffer = gtk_text_view_get_buffer(textView);
-        if( shapeParams->text ) {
-            gtk_text_buffer_set_text(textBuffer, shapeParams->text, -1);
-            fontButton = GTK_FONT_BUTTON(
-                    gtk_builder_get_object(builder, "font"));
-            gtk_font_button_set_font_name(fontButton, shapeParams->fontName);
-        }else{
-            gtk_text_buffer_set_text(textBuffer, "", 0);
-        }
+    colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
+                "fillColor"));
+    gtk_color_chooser_set_rgba(colorBtn, &shapeParams->fillColor);
+    colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
+                "textColor"));
+    gtk_color_chooser_set_rgba(colorBtn, &shapeParams->textColor);
+    setSpinButtonValue("thickness", shapeParams->thickness);
+    setSpinButtonValue("angle", shapeParams->angle);
+    setSpinButtonValue("round", shapeParams->round);
+    textView = GTK_TEXT_VIEW(gtk_builder_get_object(builder, "text"));
+    textBuffer = gtk_text_view_get_buffer(textView);
+    if( shapeParams->text ) {
+        gtk_text_buffer_set_text(textBuffer, shapeParams->text, -1);
+        fontButton = GTK_FONT_BUTTON(
+                gtk_builder_get_object(builder, "font"));
+        gtk_font_button_set_font_name(fontButton, shapeParams->fontName);
     }else{
-        colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
-                    "fillColor"));
-        gtk_color_chooser_set_rgba(colorBtn, &shapeParams->fillColor);
-        setSpinButtonValue("thickness", shapeParams->thickness);
-        setSpinButtonValue("angle", shapeParams->angle);
-        setSpinButtonValue("round", shapeParams->round);
+        gtk_text_buffer_set_text(textBuffer, "", 0);
     }
     --shapeControlsSetInProgress;
 }
 
-static void getShapeParamsFromControls(ShapeType shapeType,
-        ShapeParams *shapeParams)
+static void getShapeParamsFromControls(ShapeParams *shapeParams)
 {
     GtkColorChooser *colorBtn;
     GtkTextView *textView;
@@ -163,26 +161,25 @@ static void getShapeParamsFromControls(ShapeType shapeType,
     GtkTextIter start, end;
     GtkFontButton *fontButton;
    
-    memset(shapeParams, 0, sizeof(ShapeParams));
     colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
                 "strokeColor"));
     gtk_color_chooser_get_rgba(colorBtn, &shapeParams->strokeColor);
-    if( shapeType == ST_TEXT ) {
-        textView = GTK_TEXT_VIEW(gtk_builder_get_object(builder, "text"));
-        textBuffer = gtk_text_view_get_buffer(textView);
-        gtk_text_buffer_get_bounds (textBuffer, &start, &end);
-        shapeParams->text =
-            gtk_text_buffer_get_text(textBuffer, &start, &end, FALSE);
-        fontButton = GTK_FONT_BUTTON(gtk_builder_get_object(builder, "font"));
-        shapeParams->fontName = gtk_font_button_get_font_name(fontButton);
-    }else{
-        colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
-                    "fillColor"));
-        gtk_color_chooser_get_rgba(colorBtn, &shapeParams->fillColor);
-        shapeParams->thickness = getSpinButtonValue("thickness");
-        shapeParams->angle = getSpinButtonValue("angle");
-        shapeParams->round = getSpinButtonValue("round");
-    }
+    colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
+                "fillColor"));
+    gtk_color_chooser_get_rgba(colorBtn, &shapeParams->fillColor);
+    colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
+                "textColor"));
+    gtk_color_chooser_get_rgba(colorBtn, &shapeParams->textColor);
+    shapeParams->thickness = getSpinButtonValue("thickness");
+    shapeParams->angle = getSpinButtonValue("angle");
+    shapeParams->round = getSpinButtonValue("round");
+    textView = GTK_TEXT_VIEW(gtk_builder_get_object(builder, "text"));
+    textBuffer = gtk_text_view_get_buffer(textView);
+    gtk_text_buffer_get_bounds (textBuffer, &start, &end);
+    shapeParams->text =
+        gtk_text_buffer_get_text(textBuffer, &start, &end, FALSE);
+    fontButton = GTK_FONT_BUTTON(gtk_builder_get_object(builder, "font"));
+    shapeParams->fontName = gtk_font_button_get_font_name(fontButton);
 }
 
 void on_shape_param_change(gpointer widget, gpointer user_data)
@@ -192,7 +189,7 @@ void on_shape_param_change(gpointer widget, gpointer user_data)
     if( shapeControlsSetInProgress == 0 && di_isCurShapeSet(drawImage)
             && isToggleButtonActive("shapeSelect") )
     {
-        getShapeParamsFromControls(di_getCurShapeType(drawImage), &shapeParams);
+        getShapeParamsFromControls(&shapeParams);
         di_setCurShapeParams(drawImage, &shapeParams);
         g_free((char*)shapeParams.text);
         redrawDrawing();
@@ -236,8 +233,7 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
             selXdist = evX - di_getCurShapeXRef(drawImage);
             selYdist = evY - di_getCurShapeYRef(drawImage);
             di_getCurShapeParams(drawImage, &shapeParams);
-            setControlsFromShapeParams(di_getCurShapeType(drawImage),
-                    &shapeParams);
+            setControlsFromShapeParams(&shapeParams);
         }
     }else if( isToggleButtonActive("shapeImageSize") ) {
         selXdist = evX - di_getXRef(drawImage);
@@ -258,7 +254,7 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
             shapeType = ST_TEXT;
         else
             shapeType = ST_ARROW;
-        getShapeParamsFromControls(shapeType, &shapeParams);
+        getShapeParamsFromControls(&shapeParams);
         di_addShape(drawImage, shapeType, evX, evY, &shapeParams);
         g_free((void*)shapeParams.text);
         curAction = SA_CREATE;
@@ -366,8 +362,7 @@ void on_spinImageSize_value_changed(GtkSpinButton *spin, gpointer user_data)
 
 typedef enum {
     STP_SHAPE,
-    STP_IMAGESIZE,
-    STP_TEXT
+    STP_IMAGESIZE
 } ShapeToolsPage;
 
 static void setShapeToolsActivePage(ShapeToolsPage stp)
@@ -379,9 +374,6 @@ static void setShapeToolsActivePage(ShapeToolsPage stp)
     switch( stp ) {
     case STP_IMAGESIZE:
         pageName = "toolPageImageSize";
-        break;
-    case STP_TEXT:
-        pageName = "toolPageText";
         break;
     default:
         pageName = "toolPageShape";
@@ -423,7 +415,7 @@ void on_shapeArrow_toggled(GtkToggleButton *toggle, gpointer user_data)
 void on_shapeText_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(STP_TEXT);
+        setShapeToolsActivePage(STP_SHAPE);
 }
 
 void on_shapeTriangle_toggled(GtkToggleButton *toggle, gpointer user_data)

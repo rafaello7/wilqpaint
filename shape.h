@@ -15,6 +15,7 @@ typedef enum {
 typedef struct {
     GdkRGBA strokeColor;
     GdkRGBA fillColor;
+    GdkRGBA textColor;
     gdouble thickness;
     int angle;
     gdouble round;
