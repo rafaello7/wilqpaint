@@ -1,4 +1,4 @@
-OBJS = shape.o drawimage.o colorchooser.o wilqpaint.o \
+OBJS = hittest.o shape.o drawimage.o colorchooser.o wilqpaint.o \
 	   sizedialog.o griddialog.o quitdialog.o resources.o
 
 UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui menubar.ui

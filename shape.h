@@ -12,6 +12,17 @@ typedef enum {
     ST_ARROW
 } ShapeType;
 
+enum ShapeParam {
+    SP_STROKECOLOR,
+    SP_FILLCOLOR,
+    SP_TEXTCOLOR,
+    SP_THICKNESS,
+    SP_ANGLE,
+    SP_ROUND,
+    SP_TEXT,        /* sets also font if not set yet */
+    SP_FONTNAME
+};
+
 typedef struct {
     GdkRGBA strokeColor;
     GdkRGBA fillColor;
@@ -44,14 +55,16 @@ ShapeType shape_getType(const Shape*);
 gdouble shape_getXRef(const Shape*);
 gdouble shape_getYRef(const Shape*);
 void shape_moveTo(Shape*, gdouble xRef, gdouble yRef);
+void shape_moveRel(Shape*, gdouble x, gdouble y);
 void shape_scale(Shape*, gdouble factor);
 
 void shape_getParams(const Shape*, ShapeParams*);
 
-void shape_setParams(Shape*, const ShapeParams*);
+void shape_setParam(Shape*, enum ShapeParam, const ShapeParams*);
 
-gboolean shape_hitTest(const Shape*, gdouble x, gdouble y);
-void shape_draw(const Shape*, cairo_t*);
+gboolean shape_hitTest(const Shape*, gdouble x, gdouble y,
+        gdouble width, gdouble height);
+void shape_draw(Shape*, cairo_t*, gboolean isSelected);
 
 
 #endif /* SHAPE_H */

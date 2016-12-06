@@ -1,11 +1,8 @@
 #include <gtk/gtk.h>
 #include "shape.h"
+#include "hittest.h"
 #include <math.h>
 
-
-typedef struct {
-    gdouble x, y;
-} DrawPoint;
 
 struct Shape {
     ShapeType type;
@@ -14,23 +11,10 @@ struct Shape {
     DrawPoint *path;
     int ptCount;
     ShapeParams params;
-    gboolean isFill;
+    int drawnTextWidth;
+    int drawnTextHeight;
     int refCount;
 };
-
-static void setShapeParams(Shape *shape, const ShapeParams *shapeParams)
-{
-    shape->params = *shapeParams;
-    if( shapeParams->text != NULL && shapeParams->text[0] &&
-            shapeParams->fontName != NULL && shapeParams->fontName[0] )
-    {
-        shape->params.text = g_strdup(shapeParams->text);
-        shape->params.fontName = g_strdup(shapeParams->fontName);
-    }else{
-        shape->params.text = NULL;
-        shape->params.fontName = NULL;
-    }
-}
 
 Shape *shape_new(ShapeType type, gdouble xRef, gdouble yRef,
         const ShapeParams *shapeParams)
@@ -43,9 +27,19 @@ Shape *shape_new(ShapeType type, gdouble xRef, gdouble yRef,
     shape->ptCount = 0;
     shape->ptEnd.x = 0;
     shape->ptEnd.y = 0;
-    setShapeParams(shape, shapeParams);
+    shape->params = *shapeParams;
+    if( shapeParams->text != NULL && shapeParams->text[0] &&
+            shapeParams->fontName != NULL && shapeParams->fontName[0] )
+    {
+        shape->params.text = g_strdup(shapeParams->text);
+        shape->params.fontName = g_strdup(shapeParams->fontName);
+    }else{
+        shape->params.text = NULL;
+        shape->params.fontName = NULL;
+    }
+    shape->drawnTextWidth = 0;
+    shape->drawnTextHeight = 0;
     shape->refCount = 1;
-    shape->isFill = TRUE;
     return shape;
 }
 
@@ -76,6 +70,8 @@ Shape *shape_copyOf(const Shape *shape)
         copy->ptCount = shape->ptCount;
     }
     copy->ptEnd = shape->ptEnd;
+    copy->drawnTextWidth = shape->drawnTextWidth;
+    copy->drawnTextHeight = shape->drawnTextHeight;
     return copy;
 }
 
@@ -122,6 +118,12 @@ void shape_moveTo(Shape *shape, gdouble xRef, gdouble yRef)
     shape->yRef = yRef;
 }
 
+void shape_moveRel(Shape *shape, gdouble x, gdouble y)
+{
+    shape->xRef += x;
+    shape->yRef += y;
+}
+
 void shape_scale(Shape *shape, gdouble factor)
 {
     int i;
@@ -152,229 +154,139 @@ void shape_getParams(const Shape *shape, ShapeParams *shapeParams)
     *shapeParams = shape->params;
 }
 
-void shape_setParams(Shape *shape, const ShapeParams *shapeParams)
+void shape_setParam(Shape *shape, enum ShapeParam shapeParam,
+        const ShapeParams *shapeParams)
 {
-    g_free((void*)shape->params.text);
-    g_free((void*)shape->params.fontName);
-    setShapeParams(shape, shapeParams);
-}
-
-static int ptDistSqr(double x1, double y1, double x2, double y2)
-{
-    return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-}
-
-gboolean isPtOnEllipse(double x, double y, double ew, double eh, double addDist)
-{
-    if( ew < 0 ) {
-        x -= addDist;
-        ew -= 2.0 * addDist;
-        if( ew > 0 )
-            return FALSE;
-    }else{
-        x += addDist;
-        ew += 2.0 * addDist;
-        if( ew < 0 )
-            return FALSE;
-    }
-    if( eh < 0 ) {
-        y -= addDist;
-        eh -= 2.0 * addDist;
-        if( eh > 0 )
-            return FALSE;
-    }else{
-        y += addDist;
-        eh += 2.0 * addDist;
-        if( eh < 0 )
-            return FALSE;
-    }
-    if( ew == 0 )
-        return x == 0 && y >= MIN(0, eh) && y <= MAX(0, eh);
-    if( eh == 0 )
-        return y == 0 && x >= MIN(0, ew) && x <= MAX(0, ew);
-    return (2.0 * x / ew - 1.0) * (2.0 * x / ew - 1.0)
-            + (2.0 * y / eh - 1.0) * (2.0 * y / eh - 1.0) <= 1.0;
-}
-
-gboolean shapeFreeFormHitTest(const Shape *shape, gdouble x, gdouble y)
-{
-    float lineWidth = shape->params.thickness + 1;
-    gdouble xPrev = 0.0, yPrev = 0.0;
-    int i;
-
-    x -= shape->xRef;
-    y -= shape->yRef;
-    for(i = 0; i < shape->ptCount; ++i) {
-        DrawPoint *pt = shape->path + i;
-        double dist;
-
-        if( ptDistSqr(pt->x, pt->y, xPrev, yPrev)
-                + ptDistSqr(x, y, xPrev, yPrev)
-                <= ptDistSqr(x, y, pt->x, pt->y) )
+    switch( shapeParam ) {
+    case SP_STROKECOLOR:
+        shape->params.strokeColor = shapeParams->strokeColor;
+        break;
+    case SP_FILLCOLOR:
+        shape->params.fillColor = shapeParams->fillColor;
+        break;
+    case SP_TEXTCOLOR:
+        shape->params.textColor = shapeParams->textColor;
+        break;
+    case SP_THICKNESS:
+        shape->params.thickness = shapeParams->thickness;
+        break;
+    case SP_ANGLE:
+        shape->params.angle = shapeParams->angle;
+        break;
+    case SP_ROUND:
+        shape->params.round = shapeParams->round;
+        break;
+    case SP_TEXT:
+        g_free((void*)shape->params.text);
+        if( shapeParams->text != NULL && shapeParams->text[0] &&
+                (shape->params.fontName != NULL && shape->params.fontName[0] ||
+                 shapeParams->fontName != NULL && shapeParams->fontName[0]) )
         {
-            dist = sqrt(ptDistSqr(x, y, xPrev, yPrev));
-        }else if( ptDistSqr(pt->x, pt->y, xPrev, yPrev)
-                + ptDistSqr(x, y, pt->x, pt->y)
-                <= ptDistSqr(x, y, xPrev, yPrev))
-        {
-            dist = sqrt(ptDistSqr(x, y, pt->x, pt->y));
+            shape->params.text = g_strdup(shapeParams->text);
+            if( shape->params.fontName == NULL )
+                shape->params.fontName = g_strdup(shapeParams->fontName);
         }else{
-            // dist = (x(y1 - y0) + y(x0 - x1) + x1y0 - x0y1)
-            //        / sqrt((x0 - x1)^2 + (y1 - y0)^2)
-            dist = ABS(x * (pt->y - yPrev) + y * (xPrev - pt->x)
-                    + pt->x * yPrev - xPrev * pt->y)
-                    / sqrt((pt->x - xPrev) * (pt->x - xPrev)
-                            + (pt->y - yPrev) * (pt->y - yPrev));
+            shape->params.text = NULL;
         }
-        if( dist <= lineWidth / 2 )
-            return TRUE;
-        xPrev = pt->x;
-        yPrev = pt->y;
-    }
-    return FALSE;
-}
-
-gboolean shapeLineHitTest(const Shape *shape, gdouble x, gdouble y)
-{
-    x -= shape->xRef;
-    y -= shape->yRef;
-    float lineWidth = shape->params.thickness + 1;
-    double dist;
-    if( ptDistSqr(shape->ptEnd.x, shape->ptEnd.y, 0, 0) + ptDistSqr(x, y, 0, 0)
-            <= ptDistSqr(x, y, shape->ptEnd.x, shape->ptEnd.y) )
-    {
-        dist = sqrt(ptDistSqr(x, y, 0, 0));
-    }else if( ptDistSqr(shape->ptEnd.x, shape->ptEnd.y, 0, 0)
-        + ptDistSqr(x, y, shape->ptEnd.x, shape->ptEnd.y)
-            <= ptDistSqr(x, y, 0, 0) )
-    {
-        dist = sqrt(ptDistSqr(x, y, shape->ptEnd.x, shape->ptEnd.y));
-    }else{
-        dist = ABS(x * shape->ptEnd.y - y * shape->ptEnd.x)
-            / sqrt(shape->ptEnd.x * shape->ptEnd.x
-                    + shape->ptEnd.y * shape->ptEnd.y);
-    }
-    return dist <= lineWidth / 2;
-}
-
-gboolean shapeTriangleHitTest(const Shape *shape, gdouble x, gdouble y)
-{
-    x -= shape->xRef;
-    y -= shape->yRef;
-    double c = tan(shape->params.angle * G_PI / 360);
-    double c2 = sqrt(1 + c * c);
-    double dEndSqr = shape->ptEnd.x * shape->ptEnd.x
-        + shape->ptEnd.y * shape->ptEnd.y;
-    // <= 0
-    double dist1 = (x * (shape->ptEnd.y - c * shape->ptEnd.x)
-            - y * (shape->ptEnd.y * c + shape->ptEnd.x)) / c2;
-    // >= 0
-    double dist2 = (x * (shape->ptEnd.y + shape->ptEnd.x * c)
-            - y * (shape->ptEnd.x - shape->ptEnd.y * c)) / c2;
-    // <= 0
-    double dist3 = x * shape->ptEnd.x + y * shape->ptEnd.y - dEndSqr;
-    if( shape->isFill ) {
-        return dist1 <= 0 && dist2 >= 0 && dist3 <= 0;
-    }else{
-        double maxd = shape->params.thickness * sqrt(dEndSqr) / 2.0;
-        return dist1 <= maxd && dist2 >= -maxd && dist3 <= maxd &&
-            (dist1 >= -maxd || dist2 <= maxd || dist3 >= -maxd);
-    }
-    return FALSE;
-}
-
-gboolean shapeRectHitTest(const Shape *shape, gdouble x, gdouble y)
-{
-    gdouble xEnd = shape->ptEnd.x, yEnd = shape->ptEnd.y;
-
-    x -= shape->xRef;
-    y -= shape->yRef;
-    if( shape->isFill ) {
-        return x >= MIN(0, xEnd) && x <= MAX(0, xEnd) &&
-                y >= MIN(0, yEnd) && y <= MAX(0, yEnd);
-    }else{
-        double maxDist = shape->params.thickness / 2.0 + 1.0;
-        return x >= MIN(0, xEnd) - maxDist && x <= MAX(0, xEnd) + maxDist &&
-                y >= MIN(0, yEnd) - maxDist && y <= MAX(0, yEnd) + maxDist &&
-                (x <= MIN(0, xEnd) + maxDist || x >= MAX(0, xEnd) - maxDist ||
-                y <= MIN(0, yEnd) + maxDist || y >= MAX(0, yEnd) - maxDist);
+        break;
+    case SP_FONTNAME:
+        if( shapeParams->fontName != NULL && shapeParams->fontName[0] ) {
+            g_free((void*)shape->params.fontName);
+            shape->params.fontName = g_strdup(shapeParams->fontName);
+        }
+        break;
     }
 }
 
-gboolean shapeOvalHitTest(const Shape *shape, gdouble x, gdouble y)
-{
-    gdouble xEnd = shape->ptEnd.x, yEnd = shape->ptEnd.y;
-
-    x -= shape->xRef;
-    y -= shape->yRef;
-    if( shape->isFill ) {
-        return isPtOnEllipse(x, y, xEnd, yEnd, 1);
-    }else{
-        double maxDist = shape->params.thickness / 2.0 + 1.0;
-        return isPtOnEllipse(x, y, xEnd, yEnd, maxDist) &&
-                !isPtOnEllipse(x, y, xEnd, yEnd, -maxDist);
-    }
-}
-
-gboolean shapeTextHitTest(const Shape *shape, gdouble x, gdouble y)
-{
-    return FALSE;
-}
-
-gboolean shapeArrowHitTest(const Shape *shape, gdouble x, gdouble y)
-{
-    x -= shape->xRef;
-    y -= shape->yRef;
-    float lineWidth = shape->params.thickness + 1;
-    double dist;
-    if( ptDistSqr(shape->ptEnd.x, shape->ptEnd.y, 0, 0) + ptDistSqr(x, y, 0, 0)
-            <= ptDistSqr(x, y, shape->ptEnd.x, shape->ptEnd.y) )
-    {
-        dist = sqrt(ptDistSqr(x, y, 0, 0));
-    }else if( ptDistSqr(shape->ptEnd.x, shape->ptEnd.y, 0, 0)
-        + ptDistSqr(x, y, shape->ptEnd.x, shape->ptEnd.y)
-            <= ptDistSqr(x, y, 0, 0) )
-    {
-        dist = sqrt(ptDistSqr(x, y, shape->ptEnd.x, shape->ptEnd.y));
-    }else{
-        dist = ABS(x * shape->ptEnd.y - y * shape->ptEnd.x)
-            / sqrt(shape->ptEnd.x * shape->ptEnd.x
-                    + shape->ptEnd.y * shape->ptEnd.y);
-    }
-    return dist <= lineWidth / 2;
-}
-
-gboolean shape_hitTest(const Shape *shape, gdouble x, gdouble y)
+gboolean shape_hitTest(const Shape *shape, gdouble x, gdouble y,
+        gdouble width, gdouble height)
 {
     gboolean res = FALSE;
 
+    if( width < 0 ) {
+        x += width;
+        width = -width;
+    }
+    if( height < 0 ) {
+        y += height;
+        height = -height;
+    }
+    x -= shape->xRef;
+    y -= shape->yRef;
     switch( shape->type ) {
     case ST_FREEFORM:
-        res = shapeFreeFormHitTest(shape, x, y);
+        res = hittest_path(shape->path, shape->ptCount,
+                shape->params.thickness, x, y, x+width, y+height);
         break;
     case ST_LINE:
-        res = shapeLineHitTest(shape, x, y);
+        res = hittest_line(0, 0, shape->ptEnd.x, shape->ptEnd.y,
+                shape->params.thickness, x, y, x + width, y + height);
         break;
     case ST_TRIANGLE:
-        res = shapeTriangleHitTest(shape, x, y);
+        {
+            gdouble c = tan(shape->params.angle * G_PI / 360);
+            res = hittest_triangle(0, 0,
+                    shape->ptEnd.x + shape->ptEnd.y * c,
+                    shape->ptEnd.y - shape->ptEnd.x * c,
+                    shape->ptEnd.x - shape->ptEnd.y * c,
+                    shape->ptEnd.y + shape->ptEnd.x * c,
+                    shape->params.thickness, x, y, x+width, y+height);
+        }
         break;
     case ST_RECT:
-        res = shapeRectHitTest(shape, x, y);
+        res = hittest_rect(0, 0, shape->ptEnd.x, shape->ptEnd.y,
+                shape->params.thickness, x, y, x + width, y + height);
         break;
     case ST_OVAL:
-        res = shapeOvalHitTest(shape, x, y);
+        res = hittest_ellipse(0, 0, shape->ptEnd.x, shape->ptEnd.y,
+                shape->params.thickness, x, y, x + width, y + height);
         break;
     case ST_TEXT:
-        res = shapeTextHitTest(shape, x, y);
+        res = hittest_rect(
+                shape->ptEnd.x - 0.5 * shape->drawnTextWidth,
+                shape->ptEnd.y - 0.5 * shape->drawnTextHeight,
+                shape->ptEnd.x + 0.5 * shape->drawnTextWidth,
+                shape->ptEnd.y + 0.5 * shape->drawnTextHeight,
+                shape->params.thickness, x, y, x + width, y + height);
         break;
     default:
-        res = shapeArrowHitTest(shape, x, y);
+        res = hittest_arrow(0, 0, shape->ptEnd.x, shape->ptEnd.y,
+                shape->params.thickness, x, y, x + width, y + height);
         break;
     }
     return res;
 }
 
-static void strokeAndFillShape(const Shape *shape, cairo_t *cr)
+static void strokeSelection(cairo_t *cr)
+{
+    gdouble dashes[2];
+
+    cairo_set_line_width(cr, 1);
+    dashes[0] = 4;
+    dashes[1] = 4;
+    cairo_set_dash(cr, dashes, 2, 0);
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_stroke_preserve(cr);
+    cairo_set_dash(cr, dashes, 2, 4);
+    cairo_set_source_rgb(cr, 0, 0, 0);
+    cairo_stroke(cr);
+    cairo_set_dash(cr, NULL, 0, 0);
+}
+
+static void strokeShape(const Shape *shape, cairo_t *cr,
+        gboolean isSelected)
+{
+    gdk_cairo_set_source_rgba (cr, &shape->params.strokeColor);
+    cairo_set_line_width(cr, MAX(shape->params.thickness, 1));
+    if( isSelected ) {
+        cairo_stroke_preserve(cr);
+        strokeSelection(cr);
+    }else
+        cairo_stroke(cr);
+}
+
+static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
+        gboolean isSelected)
 {
     if( shape->params.thickness == 0 || shape->params.strokeColor.alpha == 1) {
         if( shape->params.fillColor.alpha != 0 ) {
@@ -384,9 +296,8 @@ static void strokeAndFillShape(const Shape *shape, cairo_t *cr)
         if( shape->params.thickness != 0 ) {
             cairo_set_line_width(cr, shape->params.thickness);
             gdk_cairo_set_source_rgba(cr, &shape->params.strokeColor);
-            cairo_stroke(cr);
-        }else
-            cairo_new_path(cr);
+            cairo_stroke_preserve(cr);
+        }
     }else{
         cairo_push_group(cr);
         if( shape->params.fillColor.alpha != 0 ) {
@@ -396,11 +307,15 @@ static void strokeAndFillShape(const Shape *shape, cairo_t *cr)
         gdk_cairo_set_source_rgba(cr, &shape->params.strokeColor);
         cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
         cairo_set_line_width(cr, shape->params.thickness);
-        cairo_stroke(cr);
+        cairo_stroke_preserve(cr);
         cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
         cairo_pop_group_to_source(cr);
         cairo_paint(cr);
     }
+    if( isSelected )
+        strokeSelection(cr);
+    else
+        cairo_new_path(cr);
 }
 
 static double getAngle(gdouble x, gdouble y)
@@ -436,7 +351,7 @@ static void drawArc(cairo_t *cr, gdouble xBeg, gdouble yBeg, gdouble xEnd,
 
 static void drawArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
         gdouble shapeXEnd, gdouble shapeYEnd, gdouble thickness, gint angle,
-        const GdkRGBA *color)
+        const GdkRGBA *color, gboolean isSelected)
 {
     double xBeg, yBeg, fact;
 
@@ -489,11 +404,16 @@ static void drawArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
         cairo_close_path(cr);
         gdk_cairo_set_source_rgba (cr, color);
         cairo_fill(cr);
+        if( isSelected ) {
+            cairo_move_to(cr, shapeXRef, shapeYRef);
+            cairo_line_to(cr, shapeXRef + shapeXEnd, shapeYRef + shapeYEnd);
+            strokeSelection(cr);
+        }
     }
 }
 
-static void drawText(cairo_t *cr, const Shape *shape,
-        gdouble posFactor, gboolean drawBackground)
+static void drawText(cairo_t *cr, Shape *shape,
+        gdouble posFactor, gboolean drawBackground, gboolean isSelected)
 {
     PangoLayout *layout;
     PangoFontDescription *desc;
@@ -511,22 +431,31 @@ static void drawText(cairo_t *cr, const Shape *shape,
     pango_font_description_free (desc);
     pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
     pango_layout_get_pixel_size(layout, &width, &height);
-    if( drawBackground && shape->params.fillColor.alpha != 0.0 ) {
-        gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
-        cairo_rectangle(cr, xPaint - 0.5 * width - shape->params.thickness,
-                yPaint - 0.5 * height - shape->params.thickness,
-                width + 2 * shape->params.thickness,
-                height + 2 * shape->params.thickness);
-        cairo_fill(cr);
+    if( drawBackground && shape->params.fillColor.alpha != 0.0 || isSelected ) {
+        cairo_rectangle(cr, xPaint - 0.5 * (width + shape->params.thickness),
+                yPaint - 0.5 * (height + shape->params.thickness),
+                width + shape->params.thickness,
+                height + shape->params.thickness);
+        if( drawBackground && shape->params.fillColor.alpha != 0.0 ) {
+            gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
+            cairo_fill_preserve(cr);
+        }
+        if( isSelected )
+            strokeSelection(cr);
+        else
+            cairo_new_path(cr);
     }
     gdk_cairo_set_source_rgba(cr, &shape->params.textColor);
     cairo_move_to(cr, xPaint - 0.5 * width, yPaint - 0.5 * height);
     pango_cairo_show_layout(cr, layout);
     g_object_unref(layout);
+    /* pango_cairo_show_layout does not clear path */
     cairo_new_path(cr);
+    shape->drawnTextWidth = width;
+    shape->drawnTextHeight = height;
 }
 
-void shape_draw(const Shape *shape, cairo_t *cr)
+void shape_draw(Shape *shape, cairo_t *cr, gboolean isSelected)
 {
     cairo_matrix_t matrix;
     double xBeg, yBeg, xEnd, yEnd, angleTan, round, lineLen;
@@ -538,9 +467,7 @@ void shape_draw(const Shape *shape, cairo_t *cr)
             for(int j = 0; j < shape->ptCount; ++j)
                 cairo_line_to(cr, shape->xRef + shape->path[j].x,
                         shape->yRef + shape->path[j].y);
-            gdk_cairo_set_source_rgba (cr, &shape->params.strokeColor);
-            cairo_set_line_width(cr, MAX(shape->params.thickness, 1));
-            cairo_stroke(cr);
+            strokeShape(shape, cr, isSelected);
         }
         break;
     case ST_LINE:
@@ -548,9 +475,7 @@ void shape_draw(const Shape *shape, cairo_t *cr)
             cairo_move_to(cr, shape->xRef, shape->yRef);
             cairo_line_to(cr, shape->xRef + shape->ptEnd.x,
                     shape->yRef + shape->ptEnd.y);
-            gdk_cairo_set_source_rgba (cr, &shape->params.strokeColor);
-            cairo_set_line_width(cr, MAX(shape->params.thickness, 1));
-            cairo_stroke(cr);
+            strokeShape(shape, cr, isSelected);
         }
         break;
     case ST_TRIANGLE:
@@ -593,8 +518,8 @@ void shape_draw(const Shape *shape, cairo_t *cr)
                         90 - shape->params.angle / 2, shape->params.round);
                 cairo_close_path(cr);
             }
-            strokeAndFillShape(shape, cr);
-            drawText(cr, shape, 2.0 / 3.0, FALSE);
+            strokeAndFillShape(shape, cr, isSelected);
+            drawText(cr, shape, 2.0 / 3.0, FALSE, FALSE);
         }
         break;
     case ST_RECT:
@@ -630,8 +555,8 @@ void shape_draw(const Shape *shape, cairo_t *cr)
             cairo_arc(cr, xBeg + round, yEnd - round, round,
                     0.5 * G_PI, G_PI);
         cairo_close_path(cr);
-        strokeAndFillShape(shape, cr);
-        drawText(cr, shape, 0.5, FALSE);
+        strokeAndFillShape(shape, cr, isSelected);
+        drawText(cr, shape, 0.5, FALSE, FALSE);
         break;
     case ST_OVAL:
         if( shape->ptEnd.x != 0 && shape->ptEnd.y != 0 ) {
@@ -653,17 +578,17 @@ void shape_draw(const Shape *shape, cairo_t *cr)
                     MAX(ABS(shape->ptEnd.x), ABS(shape->ptEnd.y)) / 2,
                     0, 2 * G_PI);
             cairo_restore(cr);
-            strokeAndFillShape(shape, cr);
-            drawText(cr, shape, 0.5, FALSE);
+            strokeAndFillShape(shape, cr, isSelected);
+            drawText(cr, shape, 0.5, FALSE, FALSE);
         }
         break;
     case ST_TEXT:
-        drawText(cr, shape, 1.0, TRUE);
+        drawText(cr, shape, 1.0, TRUE, isSelected);
         break;
     case ST_ARROW:
         drawArrow(cr, shape->xRef, shape->yRef, shape->ptEnd.x, shape->ptEnd.y,
                 shape->params.thickness, shape->params.angle,
-                &shape->params.strokeColor);
+                &shape->params.strokeColor, isSelected);
         break;
     }
 }

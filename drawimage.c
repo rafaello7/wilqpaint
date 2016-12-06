@@ -31,6 +31,9 @@ struct DrawImage {
     gboolean isCurShapeModified;
     guint nextStateId;
     guint savedStateId;
+    GHashTable *selection;
+    GHashTable *addedByRectSel;
+    gdouble selXRef, selYRef;
 };
 
 DrawImage *di_new(gint imgWidth, gint imgHeight)
@@ -55,6 +58,10 @@ DrawImage *di_new(gint imgWidth, gint imgHeight)
     di->isCurShapeModified = FALSE;
     di->nextStateId = 1;
     di->savedStateId = 0;
+    di->selection = g_hash_table_new(NULL, NULL);
+    di->addedByRectSel = g_hash_table_new(NULL, NULL);
+    di->selXRef = 0;
+    di->selYRef = 0;
 }
 
 static void freeState(DrawImageState *state)
@@ -178,6 +185,7 @@ void di_addShape(DrawImage *di, ShapeType shapeType,
     state->shapes = g_realloc(state->shapes,
             ++state->shapeCount * sizeof(Shape*));
     state->shapes[di->curShapeIdx] = shape;
+    g_hash_table_remove_all(di->selection);
 }
 
 gboolean di_isCurShapeSet(const DrawImage *di)
@@ -201,20 +209,6 @@ void di_curShapeAddPoint(DrawImage *di, gdouble x, gdouble y)
     }
 }
 
-gdouble di_getCurShapeXRef(const DrawImage *di)
-{
-    const DrawImageState *state = di->states + di->stateCur;
-    return di->curShapeIdx >= 0 ?
-        shape_getXRef(curShape(di)) + state->imgXRef : -1.0;
-}
-
-gdouble di_getCurShapeYRef(const DrawImage *di)
-{
-    const DrawImageState *state = di->states + di->stateCur;
-    return di->curShapeIdx >= 0 ?
-        shape_getYRef(curShape(di)) + state->imgYRef : -1.0;
-}
-
 ShapeType di_getCurShapeType(const DrawImage *di)
 {
     g_assert_cmpint(di->curShapeIdx, >=, 0);
@@ -227,38 +221,6 @@ void di_getCurShapeParams(const DrawImage *di, ShapeParams *shapeParams)
         shape_getParams(curShape(di), shapeParams);
 }
 
-void di_setCurShapeParams(DrawImage *di, const ShapeParams *shapeParams)
-{
-    if( di->curShapeIdx >= 0 ) {
-        DrawImageState *state = getStateForModify(di, di->curShapeIdx);
-        shape_setParams(state->shapes[di->curShapeIdx], shapeParams);
-    }
-}
-
-void di_curShapeMoveTo(DrawImage *di, gdouble x, gdouble y)
-{
-    if( di->curShapeIdx >= 0 ) {
-        DrawImageState *state = getStateForModify(di, di->curShapeIdx);
-        shape_moveTo(state->shapes[di->curShapeIdx],
-                x - state->imgXRef, y - state->imgYRef);
-    }
-}
-
-void di_curShapeRemove(DrawImage *di)
-{
-    int shapeIdx;
-
-    if( di->curShapeIdx >= 0 ) {
-        shapeIdx = di->curShapeIdx;
-        DrawImageState *state = getStateForModify(di, STIDX_DELSHAPE);
-        shape_unref(state->shapes[shapeIdx]);
-        while( ++shapeIdx < state->shapeCount )
-            state->shapes[shapeIdx-1] = state->shapes[shapeIdx];
-        --state->shapeCount;
-        di->curShapeIdx = STIDX_NOOP;
-    }
-}
-
 void di_undo(DrawImage *di)
 {
     if( di->stateCur != di->stateFirst ) {
@@ -267,6 +229,7 @@ void di_undo(DrawImage *di)
         else
             --di->stateCur;
         di->curShapeIdx = STIDX_NOOP;
+        g_hash_table_remove_all(di->selection);
     }
 }
 
@@ -276,22 +239,142 @@ void di_redo(DrawImage *di)
         if( ++di->stateCur == UNDO_MAX )
             di->stateCur = 0;
         di->curShapeIdx = STIDX_NOOP;
+        g_hash_table_remove_all(di->selection);
     }
 }
 
-gboolean di_curShapeFromPoint(DrawImage *di, gdouble x, gdouble y)
+gboolean di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
+        gboolean rectSelection, gboolean extend)
 {
     DrawImageState *state = di->states + di->stateCur;
-    int i;
+    int shapeIdx;
+    gpointer idxAsPtr;
 
-    for(i = state->shapeCount - 1; i >= 0
-            && !shape_hitTest(state->shapes[i], x - state->imgXRef,
-                y - state->imgYRef); --i)
-    {
+    g_hash_table_remove_all(di->addedByRectSel);
+    if( ! extend )
+        g_hash_table_remove_all(di->selection);
+    di->curShapeIdx = STIDX_NOOP;
+    shapeIdx = state->shapeCount - 1;
+    while(shapeIdx >= 0 && di->curShapeIdx == STIDX_NOOP ) {
+        if( shape_hitTest(state->shapes[shapeIdx],
+                    x - state->imgXRef, y - state->imgYRef, 0, 0) )
+        {
+            di->curShapeIdx = shapeIdx;
+            idxAsPtr = GINT_TO_POINTER(shapeIdx);
+            if( ! g_hash_table_contains(di->selection, idxAsPtr) ) {
+                g_hash_table_add(di->addedByRectSel, idxAsPtr);
+                g_hash_table_add(di->selection, idxAsPtr);
+            }
+        }
+        --shapeIdx;
     }
-    di->curShapeIdx = i;
+    if( rectSelection ) {
+        while( shapeIdx >= 0 ) {
+            idxAsPtr = GINT_TO_POINTER(shapeIdx);
+            if( ! g_hash_table_contains(di->selection, idxAsPtr)
+                && shape_hitTest(state->shapes[shapeIdx],
+                        x - state->imgXRef, y - state->imgYRef, 0, 0) )
+            {
+                g_hash_table_add(di->addedByRectSel, idxAsPtr);
+                g_hash_table_add(di->selection, idxAsPtr);
+            }
+            --shapeIdx;
+        }
+    }
     di->isCurShapeModified = FALSE;
-    return i >= 0;
+    di->selXRef = x;
+    di->selYRef = y;
+    return di->curShapeIdx != STIDX_NOOP;
+}
+
+void di_selectionFromRect(DrawImage *di, gdouble xBeg, gdouble yBeg,
+        gdouble width, gdouble height)
+{
+    DrawImageState *state = di->states + di->stateCur;
+    int shapeIdx;
+    GHashTableIter iter;
+    gpointer idxAsPtr;
+
+    g_hash_table_iter_init(&iter, di->addedByRectSel);
+    while( g_hash_table_iter_next(&iter, &idxAsPtr, NULL) )
+        g_hash_table_remove(di->selection, idxAsPtr);
+    g_hash_table_remove_all(di->addedByRectSel);
+    for(shapeIdx = 0; shapeIdx < state->shapeCount; ++shapeIdx) {
+        idxAsPtr = GINT_TO_POINTER(shapeIdx);
+        if( ! g_hash_table_contains(di->selection, idxAsPtr)
+            && shape_hitTest(state->shapes[shapeIdx], xBeg - state->imgXRef,
+                yBeg - state->imgYRef, width, height) )
+        {
+            g_hash_table_add(di->addedByRectSel, idxAsPtr);
+            g_hash_table_add(di->selection, idxAsPtr);
+        }
+    }
+}
+
+void di_setSelectionParam(DrawImage *di, enum ShapeParam shapeParam,
+        const ShapeParams *shapeParams)
+{
+    GHashTableIter iter;
+    gpointer key;
+
+    if( g_hash_table_size(di->selection) >= 0 ) {
+        DrawImageState *state = getStateForModify(di, di->curShapeIdx);
+        g_hash_table_iter_init(&iter, di->selection);
+        while( g_hash_table_iter_next(&iter, &key, NULL) ) {
+            gint shapeIdx = GPOINTER_TO_INT(key);
+            shape_setParam(state->shapes[shapeIdx], shapeParam, shapeParams);
+        }
+    }
+}
+
+void di_selectionMoveTo(DrawImage *di, gdouble x, gdouble y)
+{
+    GHashTableIter iter;
+    gpointer key;
+
+    if( g_hash_table_size(di->selection) >= 0 ) {
+        DrawImageState *state = getStateForModify(di, di->curShapeIdx);
+        g_hash_table_iter_init(&iter, di->selection);
+        while( g_hash_table_iter_next(&iter, &key, NULL) ) {
+            gint shapeIdx = GPOINTER_TO_INT(key);
+            shape_moveRel(state->shapes[shapeIdx],
+                    x - di->selXRef, y - di->selYRef);
+        }
+    }
+    di->selXRef = x;
+    di->selYRef = y;
+}
+
+gboolean di_selectionDelete(DrawImage *di)
+{
+
+    if( g_hash_table_size(di->selection) >= 0 ) {
+        int src, dest = 0;
+        DrawImageState *state = getStateForModify(di, STIDX_DELSHAPE);
+        for(src = 0; src < state->shapeCount; ++src) {
+            if( g_hash_table_contains(di->selection, GINT_TO_POINTER(src)) ) {
+                shape_unref(state->shapes[src]);
+            }else{
+                if( dest != src )
+                    state->shapes[dest] = state->shapes[src];
+                ++dest;
+            }
+        }
+        state->shapeCount = dest;
+        di->curShapeIdx = STIDX_NOOP;
+        g_hash_table_remove_all(di->selection);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+gboolean di_selectionSetEmpty(DrawImage *di)
+{
+    gboolean wasEmpty = g_hash_table_size(di->selection) == 0;
+
+    if( ! wasEmpty )
+        g_hash_table_remove_all(di->selection);
+    return ! wasEmpty;
 }
 
 void di_scale(DrawImage *di, gdouble factor)
@@ -318,6 +401,7 @@ void di_scale(DrawImage *di, gdouble factor)
         cairo_surface_destroy(state->baseImage);
         state->baseImage = newImage;
     }
+    g_hash_table_remove_all(di->selection);
 }
 
 void di_moveTo(DrawImage *di, gdouble imgXRef, gdouble imgYRef)
@@ -325,6 +409,7 @@ void di_moveTo(DrawImage *di, gdouble imgXRef, gdouble imgYRef)
     DrawImageState *state = getStateForModify(di, STIDX_MOVE);
     state->imgXRef = imgXRef;
     state->imgYRef = imgYRef;
+    g_hash_table_remove_all(di->selection);
 }
 
 void di_setSize(DrawImage *di, gint imgWidth, gint imgHeight,
@@ -335,7 +420,7 @@ void di_setSize(DrawImage *di, gint imgWidth, gint imgHeight,
     state->imgYRef += translateYfactor * (imgHeight - state->imgHeight);
     state->imgWidth = imgWidth;
     state->imgHeight = imgHeight;
-
+    g_hash_table_remove_all(di->selection);
 }
 
 void di_draw(const DrawImage *di, cairo_t *cr)
@@ -355,7 +440,8 @@ void di_draw(const DrawImage *di, cairo_t *cr)
         cairo_paint(cr);
     }
     for(int i = 0; i < state->shapeCount; ++i)
-        shape_draw(state->shapes[i], cr);
+        shape_draw(state->shapes[i], cr,
+                g_hash_table_contains(di->selection, GINT_TO_POINTER(i)));
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 )
         cairo_restore(cr);
 }
@@ -419,6 +505,8 @@ gboolean di_isModified(const DrawImage *di)
 void di_free(DrawImage *di)
 {
     freeStates(di->states, di->stateFirst, di->stateLast);
+    g_hash_table_unref(di->selection);
+    g_hash_table_unref(di->addedByRectSel);
     g_free(di);
 }
 

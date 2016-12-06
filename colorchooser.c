@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include "colorchooser.h"
 
 
 static GdkPixbuf *transparencyPatt = NULL;
@@ -17,7 +18,7 @@ static const unsigned PRE_COLORS[27] = {
 };
 
 static const double PRE_ALPHA[6] = { 0.0625, 0.125, 0.25, 0.5, 0.75, 1.0 };
-static void (*colorChooseNotifyFun)(void);
+static void (*colorChooseNotifyFun)(enum ChosenColor);
 
 
 gboolean on_colorChooser_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
@@ -85,15 +86,17 @@ gboolean on_colorChooser_button_press(GtkWidget *colorChooser,
     GtkColorChooser *colorBtn;
     GdkRGBA prevBtnColor, newBtnColor;
     GtkGrid *parentGrid;
+    enum ChosenColor cc;
 
     if( (event->button == 1 || event->button == 3)
             && event->x >= 2 && event->y >= 2 )
     {
+        cc = event->button == 1 ? CC_STROKE : CC_FILL;
         itemX = ((int)event->x - 2) / 18;
         itemY = ((int)event->y - 2) / 18;
         parentGrid = GTK_GRID(gtk_widget_get_parent(colorChooser));
         colorBtn = GTK_COLOR_CHOOSER(gtk_grid_get_child_at(parentGrid,
-                    event->button != 1, 0));
+                    cc == CC_FILL, 0));
         gtk_color_chooser_get_rgba(colorBtn, &prevBtnColor);
         if( event->x - 18 * itemX < 18 && event->y - 18 * itemY < 18 ) {
             item = 2 * itemX + itemY;
@@ -103,7 +106,7 @@ gboolean on_colorChooser_button_press(GtkWidget *colorChooser,
                 newBtnColor.green = ((preColor >> 3) & 0x7) / 2.0;
                 newBtnColor.blue = (preColor & 0x7) / 2.0;
                 newBtnColor.alpha = curChooseAlpha;
-                if( event->button == 1 )
+                if( cc == CC_STROKE )
                     curChooseColorStroke = newBtnColor;
                 else
                     curChooseColorFill = newBtnColor;
@@ -125,7 +128,7 @@ gboolean on_colorChooser_button_press(GtkWidget *colorChooser,
             if( !gdk_rgba_equal(&prevBtnColor, &newBtnColor) ) {
                 gtk_color_chooser_set_rgba(colorBtn, &newBtnColor);
                 if( colorChooseNotifyFun )
-                    colorChooseNotifyFun();
+                    colorChooseNotifyFun(cc);
             }
             redrawColorChooser(colorChooser);
         }
@@ -134,7 +137,7 @@ gboolean on_colorChooser_button_press(GtkWidget *colorChooser,
 }
 
 
-void setColorChooseNotifyHandler(void (*fun)() )
+void setColorChooseNotifyHandler(void (*fun)(enum ChosenColor) )
 {
     colorChooseNotifyFun = fun;
 }

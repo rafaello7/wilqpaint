@@ -20,18 +20,42 @@ void di_addShape(DrawImage*, ShapeType, gdouble xRef, gdouble yRef,
         const ShapeParams*);
 gboolean di_isCurShapeSet(const DrawImage*);
 void di_curShapeAddPoint(DrawImage*, gdouble x, gdouble y);
-gdouble di_getCurShapeXRef(const DrawImage*);
-gdouble di_getCurShapeYRef(const DrawImage*);
 ShapeType di_getCurShapeType(const DrawImage*);
 void di_getCurShapeParams(const DrawImage*, ShapeParams*);
-void di_setCurShapeParams(DrawImage*, const ShapeParams*);
-void di_curShapeMoveTo(DrawImage*, gdouble x, gdouble y);
-void di_curShapeRemove(DrawImage*);
 
 void di_undo(DrawImage*);
 void di_redo(DrawImage*);
 
-gboolean di_curShapeFromPoint(DrawImage*, gdouble x, gdouble y);
+/* Hits selected shape from point.
+ *
+ * If the extend is TRUE, the shape is added to current selection.
+ * If FALSE, the found element becomes the sole element of selection.
+ *
+ * The specified point is set as selection reference point.
+ */
+gboolean di_selectionFromPoint(DrawImage*, gdouble x, gdouble y,
+        gboolean rectSelection, gboolean extend);
+
+
+void di_selectionFromRect(DrawImage*, gdouble xBeg, gdouble yBeg,
+        gdouble width, gdouble height);
+
+
+void di_setSelectionParam(DrawImage*, enum ShapeParam, const ShapeParams*);
+
+/* Moves all selected shapes from selection reference point to (x, y).
+ * The specified point is set as new reference point of selection.
+ */
+void di_selectionMoveTo(DrawImage*, gdouble x, gdouble y);
+
+
+/* Deletes all selected shapes from image
+ */
+gboolean di_selectionDelete(DrawImage*);
+
+
+gboolean di_selectionSetEmpty(DrawImage*);
+
 
 void di_scale(DrawImage*, gdouble factor);
 

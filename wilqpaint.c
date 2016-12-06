@@ -12,13 +12,15 @@
 typedef enum {
     SA_CREATE,
     SA_SELECT,
+    SA_SELECTAREA,
     SA_MOVEIMAGE
 } ShapeAction;
 
 static char *curFileName = NULL;
 static DrawImage *drawImage;
 static ShapeAction curAction;
-static gdouble selXdist, selYdist;
+static gdouble moveXref, moveYref;
+static gdouble selXref, selYref, selWidth, selHeight;
 static GtkBuilder *builder;
 static gdouble curZoom = 1.0;
 static gboolean showGrid = FALSE;
@@ -98,6 +100,7 @@ void adjustDrawingSize(gboolean adjustImageSizeSpins)
     GtkWidget *drawing;
     gint imgWidth, imgHeight;
 
+    selWidth = selHeight = 0;
     drawing = GTK_WIDGET(gtk_builder_get_object(builder, "drawing"));
     imgWidth = di_getWidth(drawImage);
     imgHeight = di_getHeight(drawImage);
@@ -182,18 +185,120 @@ static void getShapeParamsFromControls(ShapeParams *shapeParams)
     shapeParams->fontName = gtk_font_button_get_font_name(fontButton);
 }
 
-void on_shape_param_change(gpointer widget, gpointer user_data)
+void on_thickness_value_changed(GtkSpinButton *spin, gpointer user_data)
 {
     ShapeParams shapeParams;
 
-    if( shapeControlsSetInProgress == 0 && di_isCurShapeSet(drawImage)
-            && isToggleButtonActive("shapeSelect") )
-    {
-        getShapeParamsFromControls(&shapeParams);
-        di_setCurShapeParams(drawImage, &shapeParams);
-        g_free((char*)shapeParams.text);
+    if( shapeControlsSetInProgress == 0 ) {
+        shapeParams.thickness = gtk_spin_button_get_value(spin);
+        di_setSelectionParam(drawImage, SP_THICKNESS, &shapeParams);
         redrawDrawing();
     }
+}
+
+void on_round_value_changed(GtkSpinButton *spin, gpointer user_data)
+{
+    ShapeParams shapeParams;
+
+    if( shapeControlsSetInProgress == 0 ) {
+        shapeParams.round = gtk_spin_button_get_value(spin);
+        di_setSelectionParam(drawImage, SP_ROUND, &shapeParams);
+        redrawDrawing();
+    }
+}
+
+void on_angle_value_changed(GtkSpinButton *spin, gpointer user_data)
+{
+    ShapeParams shapeParams;
+
+    if( shapeControlsSetInProgress == 0 ) {
+        shapeParams.angle = gtk_spin_button_get_value(spin);
+        di_setSelectionParam(drawImage, SP_ANGLE, &shapeParams);
+        redrawDrawing();
+    }
+}
+
+void on_shapeTextBuffer_changed(GtkTextBuffer *textBuffer, gpointer user_data)
+{
+    ShapeParams shapeParams;
+    GtkTextIter start, end;
+    GtkFontButton *fontButton;
+
+    if( shapeControlsSetInProgress == 0 ) {
+        gtk_text_buffer_get_bounds (textBuffer, &start, &end);
+        shapeParams.text =
+            gtk_text_buffer_get_text(textBuffer, &start, &end, FALSE);
+        fontButton = GTK_FONT_BUTTON(gtk_builder_get_object(builder, "font"));
+        shapeParams.fontName = gtk_font_button_get_font_name(fontButton);
+        di_setSelectionParam(drawImage, SP_TEXT, &shapeParams);
+        g_free((char*)shapeParams.text);
+    }
+}
+
+void on_font_font_set(GtkFontButton *fontButton, gpointer user_data)
+{
+    ShapeParams shapeParams;
+
+    if( shapeControlsSetInProgress == 0 ) {
+        shapeParams.fontName = gtk_font_button_get_font_name(fontButton);
+        di_setSelectionParam(drawImage, SP_FONTNAME, &shapeParams);
+        redrawDrawing();
+    }
+}
+
+void on_textColor_color_set(GtkColorButton *colorButton, gpointer user_data)
+{
+    ShapeParams shapeParams;
+
+    if( shapeControlsSetInProgress == 0 ) {
+        gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(colorButton),
+                &shapeParams.textColor);
+        di_setSelectionParam(drawImage, SP_TEXTCOLOR, &shapeParams);
+        redrawDrawing();
+    }
+}
+
+void on_strokeColor_color_set(GtkColorButton *colorButton, gpointer user_data)
+{
+    ShapeParams shapeParams;
+
+    if( shapeControlsSetInProgress == 0 ) {
+        gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(colorButton),
+                &shapeParams.textColor);
+        di_setSelectionParam(drawImage, SP_STROKECOLOR, &shapeParams);
+        redrawDrawing();
+    }
+}
+
+void on_fillColor_color_set(GtkColorButton *colorButton, gpointer user_data)
+{
+    ShapeParams shapeParams;
+
+    if( shapeControlsSetInProgress == 0 ) {
+        gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(colorButton),
+                &shapeParams.textColor);
+        di_setSelectionParam(drawImage, SP_FILLCOLOR, &shapeParams);
+        redrawDrawing();
+    }
+}
+
+void onShapeColorChosen(enum ChosenColor cc)
+{
+    ShapeParams shapeParams;
+    GtkColorChooser *colorBtn;
+    GdkRGBA color;
+
+    colorBtn = GTK_COLOR_CHOOSER(gtk_builder_get_object(builder,
+                cc == CC_STROKE ? "strokeColor" : "fillColor"));
+    gtk_color_chooser_get_rgba(colorBtn, &color);
+    if( cc == CC_STROKE ) {
+        shapeParams.strokeColor = color;
+        di_setSelectionParam(drawImage, SP_STROKECOLOR, &shapeParams);
+    }else{
+        shapeParams.fillColor = color;
+        di_setSelectionParam(drawImage, SP_FILLCOLOR, &shapeParams);
+    }
+    redrawDrawing();
 }
 
 static void setZoom1x(void)
@@ -227,17 +332,24 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
     ShapeType shapeType;
     ShapeParams shapeParams;
 
+    selWidth = selHeight = 0;
     if( isToggleButtonActive("shapeSelect") ) {
-        curAction = SA_SELECT;
-        if( di_curShapeFromPoint(drawImage, evX, evY) ) {
-            selXdist = evX - di_getCurShapeXRef(drawImage);
-            selYdist = evY - di_getCurShapeYRef(drawImage);
+        if( (event->state & GDK_CONTROL_MASK) == 0 ) {
+            curAction = SA_SELECTAREA;
+            selXref = evX;
+            selYref = evY;
+        }else
+            curAction = SA_SELECT;
+        if( di_selectionFromPoint(drawImage, evX, evY,
+                    curAction == SA_SELECTAREA,
+                    event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
+        {
             di_getCurShapeParams(drawImage, &shapeParams);
             setControlsFromShapeParams(&shapeParams);
         }
     }else if( isToggleButtonActive("shapeImageSize") ) {
-        selXdist = evX - di_getXRef(drawImage);
-        selYdist = evY - di_getYRef(drawImage);
+        moveXref = evX - di_getXRef(drawImage);
+        moveYref = evY - di_getYRef(drawImage);
         curAction = SA_MOVEIMAGE;
     }else{
         if( isToggleButtonActive("shapeFreeForm") )
@@ -258,9 +370,8 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
         di_addShape(drawImage, shapeType, evX, evY, &shapeParams);
         g_free((void*)shapeParams.text);
         curAction = SA_CREATE;
-        if( shapeType == ST_TEXT )
-            redrawDrawing();
     }
+    redrawDrawing();
     gtk_widget_grab_focus(widget);
     return TRUE;
 }
@@ -277,10 +388,17 @@ gboolean on_drawing_motion (GtkWidget *widget, GdkEventMotion *event,
             di_curShapeAddPoint(drawImage, evX, evY);
             break;
         case SA_MOVEIMAGE:
-            di_moveTo(drawImage, evX - selXdist, evY - selYdist);
+            di_moveTo(drawImage, evX - moveXref, evY - moveYref);
             break;
         case SA_SELECT:
-            di_curShapeMoveTo(drawImage, evX - selXdist, evY - selYdist);
+            di_selectionMoveTo(drawImage, evX, evY);
+            break;
+        case SA_SELECTAREA:
+            selWidth = evX - selXref;
+            selHeight = evY - selYref;
+            di_selectionFromRect(drawImage, selXref, selYref,
+                    selWidth, selHeight);
+            redrawDrawing();
             break;
         }
         redrawDrawing();
@@ -293,10 +411,8 @@ gboolean on_drawing_keypress(GtkWidget *widget, GdkEventKey *event,
 {
     switch( event->keyval ) {
     case GDK_KEY_Delete:
-        if( di_isCurShapeSet(drawImage) ) {
-            di_curShapeRemove(drawImage);
+        if( di_selectionDelete(drawImage) )
             redrawDrawing();
-        }
         break;
     default:
         break;
@@ -336,6 +452,20 @@ gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
             cairo_line_to(cr, i, imgHeight * curZoom);
             cairo_stroke(cr);
         }
+    }
+    if( selWidth != 0 || selHeight != 0 ) {
+        cairo_rectangle(cr, selXref * curZoom, selYref * curZoom,
+                selWidth * curZoom, selHeight * curZoom);
+        cairo_set_line_width(cr, 1);
+        dashes[0] = 4;
+        dashes[1] = 4;
+        cairo_set_dash(cr, dashes, 2, 0);
+        cairo_set_source_rgb(cr, 1, 1, 1);
+        cairo_stroke_preserve(cr);
+        cairo_set_dash(cr, dashes, 2, 4);
+        cairo_set_source_rgb(cr, 0, 0, 0);
+        cairo_stroke(cr);
+        cairo_set_dash(cr, NULL, 0, 0);
     }
     return FALSE;
 }
@@ -380,6 +510,10 @@ static void setShapeToolsActivePage(ShapeToolsPage stp)
         break;
     }
     gtk_stack_set_visible_child_name(shapeTools, pageName);
+    if( di_selectionSetEmpty(drawImage) || selWidth != 0 || selHeight != 0 ) {
+        selWidth = selHeight = 0;
+        redrawDrawing();
+    }
 }
 
 void on_shapeSelect_toggled(GtkToggleButton *toggle, gpointer user_data)
@@ -728,7 +862,7 @@ static void initializeApp(GtkApplication* app, const char *fname)
 
     if( builder != NULL )
         return;
-    setColorChooseNotifyHandler(on_shape_param_change);
+    setColorChooseNotifyHandler(onShapeColorChosen);
     menuBld = gtk_builder_new_from_resource(
             "/org/rafaello7/wilqpaint/menubar.ui");
     menuBar = G_MENU_MODEL(gtk_builder_get_object(menuBld, "menuBar"));
