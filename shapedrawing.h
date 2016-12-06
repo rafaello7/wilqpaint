@@ -1,0 +1,19 @@
+#ifndef SHAPEDRAWING_H
+#define SHAPEDRAWING_H
+
+
+void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2);
+
+void sd_pathArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
+        gdouble shapeXEnd, gdouble shapeYEnd, gdouble thickness, gint angle);
+
+void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
+        gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round);
+
+void sd_pathRect(cairo_t *cr, gdouble xBeg, gdouble yBeg,
+        gdouble xEnd, gdouble yEnd, gdouble round);
+
+void sd_pathOval(cairo_t *cr, gdouble xBeg, gdouble yBeg,
+        gdouble xEnd, gdouble yEnd);
+
+#endif /* SHAPEDRAWING_H */
