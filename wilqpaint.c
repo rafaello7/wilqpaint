@@ -232,6 +232,7 @@ void on_shapeTextBuffer_changed(GtkTextBuffer *textBuffer, gpointer user_data)
         shapeParams.fontName = gtk_font_button_get_font_name(fontButton);
         di_setSelectionParam(drawImage, SP_TEXT, &shapeParams);
         g_free((char*)shapeParams.text);
+        redrawDrawing();
     }
 }
 

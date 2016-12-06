@@ -28,39 +28,6 @@ static gboolean sectionsOverlap(
         && fmax(s1y1, s1y2) >= fmin(s2y1, s2y2);
 }
 
-static gboolean isPtOnEllipse(double x, double y, double ew,
-        double eh, double addDist)
-{
-    if( ew < 0 ) {
-        x -= addDist;
-        ew -= 2.0 * addDist;
-        if( ew > 0 )
-            return FALSE;
-    }else{
-        x += addDist;
-        ew += 2.0 * addDist;
-        if( ew < 0 )
-            return FALSE;
-    }
-    if( eh < 0 ) {
-        y -= addDist;
-        eh -= 2.0 * addDist;
-        if( eh > 0 )
-            return FALSE;
-    }else{
-        y += addDist;
-        eh += 2.0 * addDist;
-        if( eh < 0 )
-            return FALSE;
-    }
-    if( ew == 0 )
-        return x == 0 && y >= MIN(0, eh) && y <= MAX(0, eh);
-    if( eh == 0 )
-        return y == 0 && x >= MIN(0, ew) && x <= MAX(0, ew);
-    return (2.0 * x / ew - 1.0) * (2.0 * x / ew - 1.0)
-            + (2.0 * y / eh - 1.0) * (2.0 * y / eh - 1.0) <= 1.0;
-}
-
 /* In functions below a "half-plane" is specified by two points and a
  * thickness parameter. These points, (lx1, ly1), (lx2, ly2) are defining
  * a line going through these points. The half-plane boundary is a line
@@ -517,8 +484,8 @@ static gboolean ellipseHitTest(
     gdouble sxmax = fmax(sx1, sx2);
     gdouble symin = fmin(sy1, sy2);
     gdouble symax = fmax(sy1, sy2);
-    gdouble a = 0.5 * (fabs(ex2 - ex1) + thickness);
-    gdouble b = 0.5 * (fabs(ey2 - ey1) + thickness);
+    gdouble a = 0.5 * (G_SQRT2 * fabs(ex2 - ex1) + thickness);
+    gdouble b = 0.5 * (G_SQRT2 * fabs(ey2 - ey1) + thickness);
     gdouble sxchk, sychk;
 
     if( sxmax < exmid ) {
@@ -572,10 +539,25 @@ gboolean hittest_path(DrawPoint *pt, int ptCount,
     return lineHitTest(xBeg, yBeg, xEnd, yEnd, thickness, rx1, ry1, rx2, ry2);
 }
 
-gboolean hittest_triangle(gdouble tx1, gdouble ty1, gdouble tx2, gdouble ty2,
-        gdouble tx3, gdouble ty3, gdouble thickness,
+gboolean hittest_triangle(gdouble txBeg, gdouble tyBeg,
+        gdouble txEnd, gdouble tyEnd,
+        gdouble angle, gdouble round, gdouble thickness,
         gdouble rx1, gdouble ry1, gdouble rx2, gdouble ry2)
 {
+    gdouble d = round / sin(angle * G_PI / 360) - round;
+    gdouble height = sqrt((txEnd - txBeg) * (txEnd - txBeg)
+                + (tyEnd - tyBeg) * (tyEnd - tyBeg));
+    gdouble c = tan(angle * G_PI / 360);
+    gdouble txSub = (txEnd - txBeg) * d / height;
+    gdouble tySub = (tyEnd - tyBeg) * d / height;
+    txBeg -= txSub;
+    tyBeg -= tySub;
+    gdouble tx1 = txBeg;
+    gdouble ty1 = tyBeg;
+    gdouble tx2 = txEnd + (tyEnd - tyBeg) * c;
+    gdouble ty2 = tyEnd - (txEnd - txBeg) * c;
+    gdouble tx3 = txEnd - (tyEnd - tyBeg) * c;
+    gdouble ty3 = tyEnd + (txEnd - txBeg) * c;
     return twoHalfplanesIntersectionHitTest(tx1, ty1, tx2, ty2, tx2, ty2,
                 tx3, ty3, thickness, rx1, ry1, rx2, ry2)
         && twoHalfplanesIntersectionHitTest(tx2, ty2, tx3, ty3, tx3, ty3,
@@ -585,14 +567,24 @@ gboolean hittest_triangle(gdouble tx1, gdouble ty1, gdouble tx2, gdouble ty2,
 }
 
 gboolean hittest_rect(gdouble rtx1, gdouble rty1, gdouble rtx2, gdouble rty2,
-        gdouble thickness, gdouble rx1, gdouble ry1, gdouble rx2, gdouble ry2)
+        gdouble round, gdouble thickness,
+        gdouble rx1, gdouble ry1, gdouble rx2, gdouble ry2)
 {
     gdouble d = 0.5 * thickness;
+    gdouble xBeg = fmin(rtx1, rtx2);
+    gdouble xEnd = fmax(rtx1, rtx2);
+    gdouble yBeg = fmin(rty1, rty2);
+    gdouble yEnd = fmax(rty1, rty2);
 
-    return fmin(rx1, rx2) <= fmax(rtx1, rtx2) + d
-        && fmin(ry1, ry2) <= fmax(rty1, rty2) + d
-        && fmax(rx1, rx2) >= fmin(rtx1, rtx2) - d
-        && fmax(ry1, ry2) >= fmin(rty1, rty2) - d;
+    round = fmin(round, 0.5 * G_SQRT2 * fmin(xEnd - xBeg, yEnd - yBeg));
+    xBeg -= (1 - 0.5 * G_SQRT2) * round;
+    yBeg -= (1 - 0.5 * G_SQRT2) * round;
+    xEnd += (1 - 0.5 * G_SQRT2) * round;
+    yEnd += (1 - 0.5 * G_SQRT2) * round;
+    return fmin(rx1, rx2) <= xEnd + d
+        && fmin(ry1, ry2) <= yEnd + d
+        && fmax(rx1, rx2) >= xBeg - d
+        && fmax(ry1, ry2) >= yBeg - d;
 }
 
 gboolean hittest_ellipse(

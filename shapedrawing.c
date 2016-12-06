@@ -76,28 +76,10 @@ static double getAngle(gdouble x, gdouble y)
     return res;
 }
 
-/* Adds to path an arc tangential to two lines: first line is defined by points
- * (xBeg, yBeg), (xEnd, yEnd). Second line is starts at
- * (xEnd, yEnd) and is at the specified angle to the first line.
- */
-static void drawArc(cairo_t *cr, gdouble xBeg, gdouble yBeg, gdouble xEnd,
-        gdouble yEnd, gdouble angle, gint radius)
-{
-    double x = xEnd - xBeg, y = yEnd - yBeg;
-    gdouble fact = radius / sqrt(x * x + y * y);
-    gdouble angleTan = tan( angle * G_PI / 360.0 );
-    double line1Angle = getAngle(x, y);
-
-    cairo_arc(cr, xEnd - fact * (x / angleTan + y),
-            yEnd - fact * (y / angleTan - x), radius, line1Angle - G_PI/2,
-            line1Angle + G_PI/2 - angle * G_PI / 180);
-}
-
 void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round)
 {
     double angleTan = tan(angle * G_PI / 360);
-    double angleSin = sin(angle * G_PI / 360);
     double height = sqrt((xEnd - xBeg) * (xEnd - xBeg)
                 + (yEnd - yBeg) * (yEnd - yBeg));
     if( round == 0 ) {
@@ -107,20 +89,28 @@ void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         cairo_line_to(cr, xEnd - (yEnd - yBeg) * angleTan,
                 yEnd + (xEnd - xBeg) * angleTan);
         cairo_close_path(cr);
-    }else if( round >= height * (1.0 - 1.0 / (1.0 + angleSin)) ) {
-        double fact = 1.0 / (1.0 + angleSin);
-        cairo_arc(cr, xBeg + (xEnd - xBeg) * fact,
-                yBeg + (yEnd - yBeg) * fact,
-                height * (1.0 - fact), 0, 2 * G_PI);
+    }else if( round >= 0.5 * height ) {
+        cairo_arc(cr, 0.5 * (xBeg + xEnd), 0.5 * (yBeg + yEnd),
+                0.5 * height, 0, 2 * G_PI);
     }else{
-        double x1 = xEnd - xBeg + (yEnd - yBeg) * angleTan;
-        double y1 = yEnd - yBeg - (xEnd - xBeg) * angleTan;
-        double x2 = xEnd - xBeg - (yEnd - yBeg) * angleTan;
-        double y2 = yEnd - yBeg + (xEnd - xBeg) * angleTan;
-        drawArc(cr, xBeg + x2, yBeg + y2, xBeg, yBeg, angle, round);
-        drawArc(cr, xBeg, yBeg, xBeg + x1, yBeg + y1, 90 - angle / 2, round);
-        drawArc(cr, xBeg + x1, yBeg + y1, xBeg + x2, yBeg + y2,
-                90 - angle / 2, round);
+        gdouble xAdd = (xEnd - xBeg) * round / height;
+        gdouble yAdd = (yEnd - yBeg) * round / height;
+        double lineAngle = getAngle(xBeg - xEnd + (yEnd - yBeg) * angleTan,
+                yBeg - yEnd - (xEnd - xBeg) * angleTan);
+        cairo_arc(cr, xBeg + xAdd, yBeg + yAdd, round, lineAngle - G_PI/2,
+                lineAngle + G_PI/2 - angle * G_PI / 180);
+        lineAngle = getAngle(xEnd - xBeg + (yEnd - yBeg) * angleTan,
+                yEnd - yBeg - (xEnd - xBeg) * angleTan);
+        cairo_arc(cr, xEnd - xAdd + (yEnd - yBeg - 2 * yAdd) * angleTan,
+                yEnd - yAdd - (xEnd - xBeg - 2 * xAdd) * angleTan, round,
+                lineAngle - G_PI/2,
+                lineAngle + G_PI/2 - (90 - angle / 2) * G_PI / 180);
+        lineAngle = getAngle(-2.0 * (yEnd - yBeg) * angleTan,
+                2.0 * (xEnd - xBeg) * angleTan);
+        cairo_arc(cr, xEnd - xAdd - (yEnd - yBeg - 2 * yAdd) * angleTan,
+                yEnd - yAdd + (xEnd - xBeg - 2 * xAdd) * angleTan, round,
+                lineAngle - G_PI/2,
+                lineAngle + G_PI/2 - (90 - angle / 2) * G_PI / 180);
         cairo_close_path(cr);
     }
 }
@@ -138,7 +128,11 @@ void sd_pathRect(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         yBeg = yEnd;
         yEnd = t;
     }
-    round = fmin(round, 0.5 * fmin(xEnd - xBeg, yEnd - yBeg));
+    round = fmin(round, 0.5 * G_SQRT2 * fmin(xEnd - xBeg, yEnd - yBeg));
+    xBeg -= (1 - 0.5 * G_SQRT2) * round;
+    yBeg -= (1 - 0.5 * G_SQRT2) * round;
+    xEnd += (1 - 0.5 * G_SQRT2) * round;
+    yEnd += (1 - 0.5 * G_SQRT2) * round;
     cairo_move_to(cr, xBeg, yBeg + round);
     if( round )
         cairo_arc(cr, xBeg + round, yBeg + round, round,
@@ -162,6 +156,7 @@ void sd_pathOval(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd)
 {
     cairo_matrix_t matrix;
+    gdouble width = xEnd - xBeg, height = yEnd - yBeg;
 
     matrix.xx = matrix.yy = 1.0;
     matrix.xy = matrix.yx = matrix.x0 = matrix.y0 = 0;
@@ -177,7 +172,7 @@ void sd_pathOval(cairo_t *cr, gdouble xBeg, gdouble yBeg,
     }
     cairo_transform(cr, &matrix);
     cairo_arc(cr, 0.5 * (xBeg + xEnd), 0.5 * (yBeg + yEnd),
-            0.5 * fmax(fabs(xEnd - xBeg), fabs(yEnd - yBeg)),
+            0.5 * G_SQRT2 * fmax(fabs(xEnd - xBeg), fabs(yEnd - yBeg)),
             0, 2 * G_PI);
     cairo_restore(cr);
 }

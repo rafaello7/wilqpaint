@@ -224,19 +224,14 @@ gboolean shape_hitTest(const Shape *shape, gdouble x, gdouble y,
                 shape->params.thickness, x, y, x + width, y + height);
         break;
     case ST_TRIANGLE:
-        {
-            gdouble c = tan(shape->params.angle * G_PI / 360);
-            res = hittest_triangle(0, 0,
-                    shape->ptEnd.x + shape->ptEnd.y * c,
-                    shape->ptEnd.y - shape->ptEnd.x * c,
-                    shape->ptEnd.x - shape->ptEnd.y * c,
-                    shape->ptEnd.y + shape->ptEnd.x * c,
-                    shape->params.thickness, x, y, x+width, y+height);
-        }
+        res = hittest_triangle(0, 0, shape->ptEnd.x, shape->ptEnd.y,
+                shape->params.angle, shape->params.round,
+                shape->params.thickness, x, y, x+width, y+height);
         break;
     case ST_RECT:
         res = hittest_rect(0, 0, shape->ptEnd.x, shape->ptEnd.y,
-                shape->params.thickness, x, y, x + width, y + height);
+                shape->params.round, shape->params.thickness,
+                x, y, x + width, y + height);
         break;
     case ST_OVAL:
         res = hittest_ellipse(0, 0, shape->ptEnd.x, shape->ptEnd.y,
@@ -247,7 +242,7 @@ gboolean shape_hitTest(const Shape *shape, gdouble x, gdouble y,
                 shape->ptEnd.x - 0.5 * shape->drawnTextWidth,
                 shape->ptEnd.y - 0.5 * shape->drawnTextHeight,
                 shape->ptEnd.x + 0.5 * shape->drawnTextWidth,
-                shape->ptEnd.y + 0.5 * shape->drawnTextHeight,
+                shape->ptEnd.y + 0.5 * shape->drawnTextHeight, 0,
                 shape->params.thickness, x, y, x + width, y + height);
         break;
     default:
@@ -286,8 +281,18 @@ static void strokeShape(const Shape *shape, cairo_t *cr,
         cairo_stroke(cr);
 }
 
+static void strokeResizePoint(cairo_t *cr, gdouble x, gdouble y)
+{
+    cairo_rectangle(cr, x - 4, y - 4, 8, 8);
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_fill_preserve(cr);
+    cairo_set_source_rgb(cr, 0, 0, 0);
+    cairo_set_line_width(cr, 2);
+    cairo_stroke(cr);
+}
+
 static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
-        gboolean isSelected)
+        gboolean isSelected, gboolean strokeOppositeResize)
 {
     if( shape->params.thickness == 0 || shape->params.strokeColor.alpha == 1) {
         if( shape->params.fillColor.alpha != 0 ) {
@@ -313,9 +318,16 @@ static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
         cairo_pop_group_to_source(cr);
         cairo_paint(cr);
     }
-    if( isSelected )
+    if( isSelected ) {
         strokeSelection(cr);
-    else
+        strokeResizePoint(cr, shape->xRef, shape->yRef);
+        if( strokeOppositeResize ) {
+            strokeResizePoint(cr, shape->xRef + shape->ptEnd.x, shape->yRef);
+            strokeResizePoint(cr, shape->xRef, shape->yRef + shape->ptEnd.y);
+        }
+        strokeResizePoint(cr, shape->xRef + shape->ptEnd.x,
+                shape->yRef + shape->ptEnd.y);
+    }else
         cairo_new_path(cr);
 }
 
@@ -387,7 +399,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isSelected)
             sd_pathTriangle(cr, shape->xRef, shape->yRef,
                     shape->xRef + shape->ptEnd.x, shape->yRef + shape->ptEnd.y,
                     shape->params.angle, shape->params.round);
-            strokeAndFillShape(shape, cr, isSelected);
+            strokeAndFillShape(shape, cr, isSelected, FALSE);
             drawText(cr, shape, 2.0 / 3.0, FALSE, FALSE);
         }
         break;
@@ -396,7 +408,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isSelected)
             sd_pathRect(cr, shape->xRef, shape->yRef,
                     shape->xRef + shape->ptEnd.x, shape->yRef + shape->ptEnd.y,
                     shape->params.round);
-            strokeAndFillShape(shape, cr, isSelected);
+            strokeAndFillShape(shape, cr, isSelected, TRUE);
             drawText(cr, shape, 0.5, FALSE, FALSE);
         }
         break;
@@ -405,7 +417,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isSelected)
             sd_pathOval(cr, shape->xRef, shape->yRef,
                     shape->xRef + shape->ptEnd.x,
                     shape->yRef + shape->ptEnd.y);
-            strokeAndFillShape(shape, cr, isSelected);
+            strokeAndFillShape(shape, cr, isSelected, TRUE);
             drawText(cr, shape, 0.5, FALSE, FALSE);
         }
         break;
