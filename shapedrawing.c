@@ -4,7 +4,7 @@
 
 void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y)
 {
-    cairo_rectangle(cr, x - 1, y - 1, 2, 2);
+    cairo_arc(cr, x, y, 1, 0, 2 * G_PI);
 }
 
 void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2)
@@ -156,24 +156,32 @@ void sd_pathOval(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd)
 {
     cairo_matrix_t matrix;
-    gdouble width = xEnd - xBeg, height = yEnd - yBeg;
 
-    matrix.xx = matrix.yy = 1.0;
-    matrix.xy = matrix.yx = matrix.x0 = matrix.y0 = 0;
-    cairo_save(cr);
-    if( fabs(xEnd - xBeg) < ABS(yEnd - yBeg) ) {
-        double xMid = 0.5 * (xBeg + xEnd);
-        matrix.xx = fabs((xEnd - xBeg) / (yEnd - yBeg));
-        matrix.x0 = xMid * (1.0 - matrix.xx);
+    if( xEnd != xBeg && yEnd != yBeg ) {
+        cairo_save(cr);
+        if( fabs(xEnd - xBeg) != fabs(yEnd - yBeg) ) {
+            matrix.xx = matrix.yy = 1.0;
+            matrix.xy = matrix.yx = matrix.x0 = matrix.y0 = 0;
+            if( fabs(xEnd - xBeg) < fabs(yEnd - yBeg) ) {
+                double xMid = 0.5 * (xBeg + xEnd);
+                matrix.xx = fabs((xEnd - xBeg) / (yEnd - yBeg));
+                matrix.x0 = xMid * (1.0 - matrix.xx);
+            }else{
+                double yMid = 0.5 * (yBeg + yEnd);
+                matrix.yy = fabs((yEnd - yBeg) / (xEnd - xBeg));
+                matrix.y0 = yMid * (1.0 - matrix.yy);
+            }
+            cairo_transform(cr, &matrix);
+        }
+        cairo_arc(cr, 0.5 * (xBeg + xEnd), 0.5 * (yBeg + yEnd),
+                0.5 * G_SQRT2 * fmax(fabs(xEnd - xBeg), fabs(yEnd - yBeg)),
+                0, 2 * G_PI);
+        cairo_restore(cr);
     }else{
-        double yMid = 0.5 * (yBeg + yEnd);
-        matrix.yy = fabs((yEnd - yBeg) / (xEnd - xBeg));
-        matrix.y0 = yMid * (1.0 - matrix.yy);
+        cairo_rectangle(cr,
+                xBeg - 0.5 * (G_SQRT2 - 1) * (xEnd - xBeg),
+                yBeg - 0.5 * (G_SQRT2 - 1) * (yEnd - yBeg),
+                G_SQRT2 * (xEnd - xBeg), G_SQRT2 * (yEnd - yBeg));
     }
-    cairo_transform(cr, &matrix);
-    cairo_arc(cr, 0.5 * (xBeg + xEnd), 0.5 * (yBeg + yEnd),
-            0.5 * G_SQRT2 * fmax(fabs(xEnd - xBeg), fabs(yEnd - yBeg)),
-            0, 2 * G_PI);
-    cairo_restore(cr);
 }
 

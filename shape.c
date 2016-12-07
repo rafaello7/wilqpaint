@@ -488,7 +488,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isCurrent,
         drawText(cr, shape, 0.5, FALSE, FALSE);
         break;
     case ST_OVAL:
-        if( shape->xRight != shape->xLeft && shape->yBottom != shape->yTop ) {
+        if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathOval(cr, shape->xLeft, shape->yTop,
                     shape->xRight, shape->yBottom);
         }else{
