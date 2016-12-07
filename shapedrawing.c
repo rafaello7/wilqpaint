@@ -4,7 +4,7 @@
 
 void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y)
 {
-    cairo_rectangle(cr, x, y, 1, 1);
+    cairo_rectangle(cr, x - 1, y - 1, 2, 2);
 }
 
 void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2)

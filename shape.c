@@ -337,7 +337,7 @@ static void strokeResizePt(cairo_t *cr, gdouble x, gdouble y)
     cairo_set_source_rgb(cr, 1, 1, 1);
     cairo_fill_preserve(cr);
     cairo_set_source_rgb(cr, 0, 0, 0);
-    cairo_set_line_width(cr, 2);
+    cairo_set_line_width(cr, 1);
     cairo_stroke(cr);
 }
 
@@ -388,22 +388,28 @@ static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
 static void drawText(cairo_t *cr, Shape *shape,
         gdouble posFactor, gboolean drawBackground, gboolean isSelected)
 {
-    PangoLayout *layout;
+    PangoLayout *layout = NULL;
     PangoFontDescription *desc;
     int width, height;
     gdouble xPaint, yPaint;
+    const char *text = shape->params.text;
 
-    if( shape->params.text == NULL || shape->params.text[0] == '\0' )
+    if( ! drawBackground && (text == NULL || text[0] == '\0') )
         return;
     xPaint = shape->xLeft + posFactor * (shape->xRight - shape->xLeft);
     yPaint = shape->yTop + posFactor * (shape->yBottom - shape->yTop);
-    layout = pango_cairo_create_layout(cr);
-    pango_layout_set_text(layout, shape->params.text, -1);
-    desc = pango_font_description_from_string(shape->params.fontName);
-    pango_layout_set_font_description (layout, desc);
-    pango_font_description_free (desc);
-    pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
-    pango_layout_get_pixel_size(layout, &width, &height);
+    if( shape->params.fontName ) {
+        layout = pango_cairo_create_layout(cr);
+        pango_layout_set_text(layout, text ? text : "", -1);
+        desc = pango_font_description_from_string(shape->params.fontName);
+        pango_layout_set_font_description (layout, desc);
+        pango_font_description_free (desc);
+        pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
+        pango_layout_get_pixel_size(layout, &width, &height);
+    }else{
+        width = 1;
+        height = 8;
+    }
     if( drawBackground && shape->params.fillColor.alpha != 0.0 || isSelected ) {
         cairo_rectangle(cr, xPaint - 0.5 * width - shape->params.thickness,
                 yPaint - 0.5 * height - shape->params.thickness,
@@ -418,12 +424,14 @@ static void drawText(cairo_t *cr, Shape *shape,
         else
             cairo_new_path(cr);
     }
-    gdk_cairo_set_source_rgba(cr, &shape->params.textColor);
-    cairo_move_to(cr, xPaint - 0.5 * width, yPaint - 0.5 * height);
-    pango_cairo_show_layout(cr, layout);
-    g_object_unref(layout);
-    /* pango_cairo_show_layout does not clear path */
-    cairo_new_path(cr);
+    if( layout ) {
+        gdk_cairo_set_source_rgba(cr, &shape->params.textColor);
+        cairo_move_to(cr, xPaint - 0.5 * width, yPaint - 0.5 * height);
+        pango_cairo_show_layout(cr, layout);
+        g_object_unref(layout);
+        /* pango_cairo_show_layout does not clear path */
+        cairo_new_path(cr);
+    }
     shape->drawnTextWidth = width;
     shape->drawnTextHeight = height;
 }

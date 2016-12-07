@@ -375,6 +375,15 @@ static gboolean twoHalfplanesIntersectionHitTest(
             l2x1, l2y1, l2x2, l2y2, thickness, rx2, ry1, rx2, ry2);
 }
 
+static gboolean pointHitTest(gdouble x, gdouble y, gdouble thickness,
+        gdouble rx1, gdouble ry1, gdouble rx2, gdouble ry2)
+{
+    gdouble d = 0.5 * thickness;
+
+    return x - d <= fmax(rx1, rx2) && x + d >= fmin(rx1, rx2)
+        && y - d <= fmax(ry1, ry2) && y + d >= fmin(ry1, ry2);
+}
+
 static gboolean lineHitTest(gdouble lx1, gdouble ly1, gdouble lx2, gdouble ly2,
         gdouble thickness, gdouble rx1, gdouble ry1, gdouble rx2, gdouble ry2)
 {
@@ -383,6 +392,8 @@ static gboolean lineHitTest(gdouble lx1, gdouble ly1, gdouble lx2, gdouble ly2,
     gdouble d = 0.5 * thickness;
     gdouble len = sqrt(lenSqr);
 
+    if( lenSqr == 0 )
+        return pointHitTest(lx1, ly1, thickness, rx1, ry1, rx2, ry2);
     a = d * fabs(ly1 - ly2) / len;
     if( fmin(lx1, lx2) - fmax(rx1, rx2) > a
             || fmax(lx1, lx2) - fmin(rx1, rx2) < -a )
@@ -526,6 +537,8 @@ gboolean hittest_path(DrawPoint *pt, int ptCount,
     int i;
     gdouble xBeg = 0.0, yBeg = 0.0, xEnd, yEnd;
 
+    if( ptCount == 0 )
+        return pointHitTest(0, 0, thickness, rx1, ry1, rx2, ry2);
     for(i = 0; i < ptCount - 1; ++i) {
         xEnd = pt[i].x;
         yEnd = pt[i].y;
@@ -544,20 +557,24 @@ gboolean hittest_triangle(gdouble txBeg, gdouble tyBeg,
         gdouble angle, gdouble round, gdouble thickness,
         gdouble rx1, gdouble ry1, gdouble rx2, gdouble ry2)
 {
-    gdouble d = round / sin(angle * G_PI / 360) - round;
-    gdouble height = sqrt((txEnd - txBeg) * (txEnd - txBeg)
+    gdouble d, c, height, txSub, tySub, tx1, ty1, tx2, ty2, tx3, ty3;
+
+    if( txBeg == tyBeg && txEnd == tyEnd )
+        return pointHitTest(txBeg, tyBeg, thickness, rx1, ry1, rx2, ry2);
+    d = round / sin(angle * G_PI / 360) - round;
+    height = sqrt((txEnd - txBeg) * (txEnd - txBeg)
                 + (tyEnd - tyBeg) * (tyEnd - tyBeg));
-    gdouble c = tan(angle * G_PI / 360);
-    gdouble txSub = (txEnd - txBeg) * d / height;
-    gdouble tySub = (tyEnd - tyBeg) * d / height;
+    c = tan(angle * G_PI / 360);
+    txSub = (txEnd - txBeg) * d / height;
+    tySub = (tyEnd - tyBeg) * d / height;
     txBeg -= txSub;
     tyBeg -= tySub;
-    gdouble tx1 = txBeg;
-    gdouble ty1 = tyBeg;
-    gdouble tx2 = txEnd + (tyEnd - tyBeg) * c;
-    gdouble ty2 = tyEnd - (txEnd - txBeg) * c;
-    gdouble tx3 = txEnd - (tyEnd - tyBeg) * c;
-    gdouble ty3 = tyEnd + (txEnd - txBeg) * c;
+    tx1 = txBeg;
+    ty1 = tyBeg;
+    tx2 = txEnd + (tyEnd - tyBeg) * c;
+    ty2 = tyEnd - (txEnd - txBeg) * c;
+    tx3 = txEnd - (tyEnd - tyBeg) * c;
+    ty3 = tyEnd + (txEnd - txBeg) * c;
     return twoHalfplanesIntersectionHitTest(tx1, ty1, tx2, ty2, tx2, ty2,
                 tx3, ty3, thickness, rx1, ry1, rx2, ry2)
         && twoHalfplanesIntersectionHitTest(tx2, ty2, tx3, ty3, tx3, ty3,
@@ -570,12 +587,15 @@ gboolean hittest_rect(gdouble rtx1, gdouble rty1, gdouble rtx2, gdouble rty2,
         gdouble round, gdouble thickness,
         gdouble rx1, gdouble ry1, gdouble rx2, gdouble ry2)
 {
-    gdouble d = 0.5 * thickness;
-    gdouble xBeg = fmin(rtx1, rtx2);
-    gdouble xEnd = fmax(rtx1, rtx2);
-    gdouble yBeg = fmin(rty1, rty2);
-    gdouble yEnd = fmax(rty1, rty2);
+    gdouble d, xBeg, xEnd, yBeg, yEnd;
 
+    if( rtx1 == rtx2 && rty1 == rty2 )
+        return pointHitTest(rtx1, rty1, thickness, rx1, ry1, rx2, ry2);
+    d = 0.5 * thickness;
+    xBeg = fmin(rtx1, rtx2);
+    xEnd = fmax(rtx1, rtx2);
+    yBeg = fmin(rty1, rty2);
+    yEnd = fmax(rty1, rty2);
     round = fmin(round, 0.5 * G_SQRT2 * fmin(xEnd - xBeg, yEnd - yBeg));
     xBeg -= (1 - 0.5 * G_SQRT2) * round;
     yBeg -= (1 - 0.5 * G_SQRT2) * round;
@@ -591,6 +611,8 @@ gboolean hittest_ellipse(
         gdouble ex1, gdouble ey1, gdouble ex2, gdouble ey2,
         gdouble thickness, gdouble rx1, gdouble ry1, gdouble rx2, gdouble ry2)
 {
+    if( ex1 == ex2 && ey1 == ey2 )
+        return pointHitTest(ex1, ey1, thickness, rx1, ry1, rx2, ry2);
     return ellipseHitTest(ex1, ey1, ex2, ey2, thickness, rx1, rx2, ry1, ry2);
 }
 
