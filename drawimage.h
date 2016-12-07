@@ -19,7 +19,6 @@ void di_getBackgroundColor(const DrawImage*, GdkRGBA*);
 void di_addShape(DrawImage*, ShapeType, gdouble xRef, gdouble yRef,
         const ShapeParams*);
 gboolean di_isCurShapeSet(const DrawImage*);
-void di_curShapeAddPoint(DrawImage*, gdouble x, gdouble y);
 ShapeType di_getCurShapeType(const DrawImage*);
 void di_getCurShapeParams(const DrawImage*, ShapeParams*);
 
@@ -34,11 +33,10 @@ void di_redo(DrawImage*);
  * The specified point is set as selection reference point.
  */
 gboolean di_selectionFromPoint(DrawImage*, gdouble x, gdouble y,
-        gboolean rectSelection, gboolean extend);
+        gboolean isRect, gboolean extend);
 
 
-void di_selectionFromRect(DrawImage*, gdouble xBeg, gdouble yBeg,
-        gdouble width, gdouble height);
+void di_selectionFromRect(DrawImage*, gdouble x, gdouble y);
 
 
 void di_setSelectionParam(DrawImage*, enum ShapeParam, const ShapeParams*);

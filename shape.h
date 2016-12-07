@@ -12,6 +12,16 @@ typedef enum {
     ST_ARROW
 } ShapeType;
 
+enum ShapeSide {
+    SS_NONE             = 0x0,
+    SS_TOP              = 0x1,     /* upper Y coordinate is changed */
+    SS_BOTTOM           = 0x2,     /* lower Y coordinate is changed */
+    SS_LEFT             = 0x4,     /* left  X coordinate is changed */
+    SS_RIGHT            = 0x8,     /* right X coordinate is changed */
+    SS_MID              = 0x10,
+    SS_CREATE           = 0x20 /* initial draw (free form shape adds points */
+};
+
 enum ShapeParam {
     SP_STROKECOLOR,
     SP_FILLCOLOR,
@@ -49,22 +59,22 @@ Shape *shape_copyOf(const Shape*);
  */
 Shape *shape_replaceDup(Shape**);
 
-void shape_addPoint(Shape*, gdouble x, gdouble y);
+void shape_moveBeg(Shape*);
+
+/* The x and y coordinates are relative to xRef and yRef.
+ */
+void shape_moveTo(Shape*, gdouble x, gdouble y, enum ShapeSide);
 
 ShapeType shape_getType(const Shape*);
-gdouble shape_getXRef(const Shape*);
-gdouble shape_getYRef(const Shape*);
-void shape_moveTo(Shape*, gdouble xRef, gdouble yRef);
-void shape_moveRel(Shape*, gdouble x, gdouble y);
 void shape_scale(Shape*, gdouble factor);
 
 void shape_getParams(const Shape*, ShapeParams*);
 
 void shape_setParam(Shape*, enum ShapeParam, const ShapeParams*);
 
-gboolean shape_hitTest(const Shape*, gdouble x, gdouble y,
-        gdouble width, gdouble height);
-void shape_draw(Shape*, cairo_t*, gboolean isSelected);
+enum ShapeSide shape_hitTest(const Shape*, gdouble xBeg, gdouble yBeg,
+        gdouble xEnd, gdouble yEnd);
+void shape_draw(Shape*, cairo_t*, gboolean isCurrent, gboolean isSelected);
 
 
 #endif /* SHAPE_H */

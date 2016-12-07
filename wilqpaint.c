@@ -10,8 +10,7 @@
 
 
 typedef enum {
-    SA_CREATE,
-    SA_SELECT,
+    SA_LAYOUT,
     SA_SELECTAREA,
     SA_MOVEIMAGE
 } ShapeAction;
@@ -335,15 +334,15 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
 
     selWidth = selHeight = 0;
     if( isToggleButtonActive("shapeSelect") ) {
-        if( (event->state & GDK_CONTROL_MASK) == 0 ) {
+        if( event->state & GDK_SHIFT_MASK ) {
             curAction = SA_SELECTAREA;
             selXref = evX;
             selYref = evY;
         }else
-            curAction = SA_SELECT;
+            curAction = SA_LAYOUT;
         if( di_selectionFromPoint(drawImage, evX, evY,
                     curAction == SA_SELECTAREA,
-                    event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
+                    event->state & GDK_CONTROL_MASK) )
         {
             di_getCurShapeParams(drawImage, &shapeParams);
             setControlsFromShapeParams(&shapeParams);
@@ -370,7 +369,7 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
         getShapeParamsFromControls(&shapeParams);
         di_addShape(drawImage, shapeType, evX, evY, &shapeParams);
         g_free((void*)shapeParams.text);
-        curAction = SA_CREATE;
+        curAction = SA_LAYOUT;
     }
     redrawDrawing();
     gtk_widget_grab_focus(widget);
@@ -385,21 +384,16 @@ gboolean on_drawing_motion (GtkWidget *widget, GdkEventMotion *event,
 
     if( event->state & GDK_BUTTON1_MASK ) {
         switch( curAction ) {
-        case SA_CREATE:
-            di_curShapeAddPoint(drawImage, evX, evY);
+        case SA_LAYOUT:
+            di_selectionMoveTo(drawImage, evX, evY);
             break;
         case SA_MOVEIMAGE:
             di_moveTo(drawImage, evX - moveXref, evY - moveYref);
             break;
-        case SA_SELECT:
-            di_selectionMoveTo(drawImage, evX, evY);
-            break;
         case SA_SELECTAREA:
             selWidth = evX - selXref;
             selHeight = evY - selYref;
-            di_selectionFromRect(drawImage, selXref, selYref,
-                    selWidth, selHeight);
-            redrawDrawing();
+            di_selectionFromRect(drawImage, evX, evY);
             break;
         }
         redrawDrawing();

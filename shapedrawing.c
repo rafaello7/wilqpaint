@@ -2,6 +2,10 @@
 #include "shapedrawing.h"
 #include <math.h>
 
+void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y)
+{
+    cairo_rectangle(cr, x, y, 1, 1);
+}
 
 void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2)
 {
@@ -9,8 +13,8 @@ void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2)
     cairo_line_to(cr, x2, y2);
 }
 
-void sd_pathArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
-        gdouble shapeXEnd, gdouble shapeYEnd, gdouble thickness, gint angle)
+void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
+        double xRight, gdouble yBottom, gdouble thickness, gint angle)
 {
     double xBeg, yBeg, fact;
 
@@ -19,13 +23,14 @@ void sd_pathArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
     fact = 2.0 + 6.0 / thickness;
     double lineWidth = fmax(thickness, 1.0);
     double minLen;
-    double lineLen = sqrt(shapeXEnd * shapeXEnd + shapeYEnd * shapeYEnd);
+    double lineLen = sqrt((xRight - xLeft) * (xRight - xLeft)
+            + (yBottom - yTop) * (yBottom - yTop));
     double angleTan = tan(angle * G_PI / 360);
-    double xEnd = 0.5 * fact * lineWidth / angleTan * shapeXEnd / lineLen;
-    double yEnd = 0.5 * fact * lineWidth / angleTan * shapeYEnd / lineLen;
-    cairo_move_to(cr, shapeXRef + shapeXEnd, shapeYRef + shapeYEnd);
-    cairo_line_to(cr, shapeXRef + shapeXEnd - xEnd - yEnd * angleTan,
-            shapeYRef + shapeYEnd - yEnd + xEnd * angleTan);
+    double xEnd = 0.5 * fact * lineWidth / angleTan * (xRight-xLeft) / lineLen;
+    double yEnd = 0.5 * fact * lineWidth / angleTan * (yBottom-yTop) / lineLen;
+    cairo_move_to(cr, xRight, yBottom);
+    cairo_line_to(cr, xRight - xEnd - yEnd * angleTan,
+            yBottom - yEnd + xEnd * angleTan);
     if( angle < 90 ) {
         xBeg = xEnd * 0.5 * (1 + angleTan * angleTan);
         yBeg = yEnd * 0.5 * (1 + angleTan * angleTan);
@@ -38,27 +43,22 @@ void sd_pathArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
     }
     if( lineLen > minLen ) {
         cairo_line_to(cr,
-            shapeXRef + shapeXEnd - (xEnd + yEnd * angleTan)/fact
+            xRight - (xEnd + yEnd * angleTan)/fact
                  - xBeg * (1 - 1 / fact),
-            shapeYRef + shapeYEnd - (yEnd - xEnd * angleTan)/fact
+            yBottom - (yEnd - xEnd * angleTan)/fact
                  - yBeg * (1 - 1 / fact));
-        cairo_line_to(cr, shapeXRef - lineWidth * shapeYEnd / lineLen / 2,
-                shapeYRef + shapeYEnd - shapeYEnd
-                + lineWidth * shapeXEnd / lineLen / 2);
-        cairo_line_to(cr, shapeXRef + lineWidth * shapeYEnd / lineLen / 2,
-                shapeYRef + shapeYEnd - shapeYEnd
-                - lineWidth * shapeXEnd / lineLen / 2);
-        cairo_line_to(cr,
-            shapeXRef + shapeXEnd - (xEnd - yEnd * angleTan)/fact
+        cairo_line_to(cr, xLeft - lineWidth * (yBottom - yTop) / lineLen / 2,
+                yTop + lineWidth * (xRight - xLeft) / lineLen / 2);
+        cairo_line_to(cr, xLeft + lineWidth * (yBottom - yTop) / lineLen / 2,
+                yTop - lineWidth * (xRight - xLeft) / lineLen / 2);
+        cairo_line_to(cr, xRight - (xEnd - yEnd * angleTan)/fact
                  - xBeg * (1 - 1 / fact),
-            shapeYRef + shapeYEnd - (yEnd + xEnd * angleTan)/fact
-                 - yBeg * (1 - 1 / fact));
+            yBottom - (yEnd + xEnd * angleTan)/fact - yBeg * (1 - 1 / fact));
     }else if( angle < 90 ) {
-        cairo_line_to(cr, shapeXRef + shapeXEnd - xBeg,
-                shapeYRef + shapeYEnd - yBeg);
+        cairo_line_to(cr, xRight - xBeg, yBottom - yBeg);
     }
-    cairo_line_to(cr, shapeXRef + shapeXEnd - xEnd + yEnd * angleTan,
-            shapeYRef + shapeYEnd - yEnd - xEnd * angleTan);
+    cairo_line_to(cr, xRight - xEnd + yEnd * angleTan,
+            yBottom - yEnd - xEnd * angleTan);
     cairo_close_path(cr);
 }
 

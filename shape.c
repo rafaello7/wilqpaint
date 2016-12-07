@@ -7,8 +7,14 @@
 
 struct Shape {
     ShapeType type;
-    gdouble xRef, yRef;
-    DrawPoint ptEnd;
+    gdouble xRefLeft;
+    gdouble xRefRight;
+    gdouble yRefTop;
+    gdouble yRefBottom;
+    gdouble xLeft;
+    gdouble xRight;
+    gdouble yTop;
+    gdouble yBottom;
     DrawPoint *path;
     int ptCount;
     ShapeParams params;
@@ -22,12 +28,12 @@ Shape *shape_new(ShapeType type, gdouble xRef, gdouble yRef,
 {
     Shape *shape = g_malloc(sizeof(Shape));
     shape->type = type;
-    shape->xRef = xRef;
-    shape->yRef = yRef;
+    shape->xRefLeft = shape->xRefRight = xRef;
+    shape->yRefTop = shape->yRefBottom = yRef;
+    shape->xLeft = shape->xRight = xRef;
+    shape->yTop = shape->yBottom = yRef;
     shape->path = NULL;
     shape->ptCount = 0;
-    shape->ptEnd.x = 0;
-    shape->ptEnd.y = 0;
     shape->params = *shapeParams;
     if( shapeParams->text != NULL && shapeParams->text[0] &&
             shapeParams->fontName != NULL && shapeParams->fontName[0] )
@@ -62,15 +68,20 @@ Shape *shape_copyOf(const Shape *shape)
 {
     int i;
 
-    Shape *copy = shape_new(shape->type, shape->xRef, shape->yRef,
+    Shape *copy = shape_new(shape->type, shape->xRefLeft, shape->yRefTop,
             &shape->params);
+    copy->xRefRight = shape->xRefRight;
+    copy->yRefBottom = shape->yRefBottom;
     if( shape->path != NULL ) {
         copy->path = g_malloc(shape->ptCount * sizeof(*shape->path));
         for(i = 0; i < shape->ptCount; ++i)
             copy->path[i] = shape->path[i];
         copy->ptCount = shape->ptCount;
     }
-    copy->ptEnd = shape->ptEnd;
+    copy->xLeft = shape->xLeft;
+    copy->xRight = shape->xRight;
+    copy->yTop = shape->yTop;
+    copy->yBottom = shape->yBottom;
     copy->drawnTextWidth = shape->drawnTextWidth;
     copy->drawnTextHeight = shape->drawnTextHeight;
     return copy;
@@ -86,15 +97,30 @@ Shape *shape_replaceDup(Shape **pShape)
     return *pShape;
 }
 
-void shape_addPoint(Shape *shape, gdouble x, gdouble y)
+void shape_moveBeg(Shape *shape)
 {
-    shape->ptEnd.x = x - shape->xRef;
-    shape->ptEnd.y = y - shape->yRef;
-    if( shape->type == ST_FREEFORM ) {
+    shape->xRefLeft = shape->xLeft;
+    shape->xRefRight = shape->xRight;
+    shape->yRefTop = shape->yTop;
+    shape->yRefBottom = shape->yBottom;
+}
+
+void shape_moveTo(Shape *shape, gdouble x, gdouble y,
+        enum ShapeSide side)
+{
+    if( side & (SS_LEFT|SS_MID) )
+        shape->xLeft = shape->xRefLeft + x;
+    if( side & (SS_TOP|SS_MID) )
+        shape->yTop = shape->yRefTop + y;
+    if( side & (SS_RIGHT|SS_MID) )
+        shape->xRight = shape->xRefRight + x;
+    if( side & (SS_BOTTOM|SS_MID) )
+        shape->yBottom = shape->yRefBottom + y;
+    if( side & SS_CREATE && shape->type == ST_FREEFORM ) {
         shape->path = g_realloc(shape->path,
                 ++shape->ptCount * sizeof(DrawPoint));
-        shape->path[shape->ptCount-1].x = shape->ptEnd.x;
-        shape->path[shape->ptCount-1].y = shape->ptEnd.y;
+        shape->path[shape->ptCount-1].x = shape->xRight - shape->xLeft;
+        shape->path[shape->ptCount-1].y = shape->yBottom - shape->yTop;
     }
 }
 
@@ -103,37 +129,19 @@ ShapeType shape_getType(const Shape *shape)
     return shape->type;
 }
 
-gdouble shape_getXRef(const Shape *shape)
-{
-    return shape->xRef;
-}
-
-gdouble shape_getYRef(const Shape *shape)
-{
-    return shape->yRef;
-}
-
-void shape_moveTo(Shape *shape, gdouble xRef, gdouble yRef)
-{
-    shape->xRef = xRef;
-    shape->yRef = yRef;
-}
-
-void shape_moveRel(Shape *shape, gdouble x, gdouble y)
-{
-    shape->xRef += x;
-    shape->yRef += y;
-}
-
 void shape_scale(Shape *shape, gdouble factor)
 {
     int i;
     PangoFontDescription *desc;
 
-    shape->xRef *= factor;
-    shape->yRef *= factor;
-    shape->ptEnd.x *= factor;
-    shape->ptEnd.y *= factor;
+    shape->xRefLeft *= factor;
+    shape->xRefRight *= factor;
+    shape->yRefTop *= factor;
+    shape->yRefBottom *= factor;
+    shape->xLeft *= factor;
+    shape->xRight *= factor;
+    shape->yTop *= factor;
+    shape->yBottom *= factor;
     for(i = 0; i < shape->ptCount; ++i) {
         shape->path[i].x *= factor;
         shape->path[i].y *= factor;
@@ -199,56 +207,98 @@ void shape_setParam(Shape *shape, enum ShapeParam shapeParam,
     }
 }
 
-gboolean shape_hitTest(const Shape *shape, gdouble x, gdouble y,
-        gdouble width, gdouble height)
+enum ShapeSide shape_hitTest(const Shape *shape, gdouble xBeg, gdouble yBeg,
+        gdouble xEnd, gdouble yEnd)
 {
-    gboolean res = FALSE;
+    enum ShapeSide res = SS_NONE;
+    enum { CORNERDISTMAX = 4 };
 
-    if( width < 0 ) {
-        x += width;
-        width = -width;
+    if( xBeg == xEnd && yBeg == yEnd ) {
+        switch( shape->type ) {
+        case ST_RECT:
+        case ST_OVAL:
+            if( fabs(xBeg - shape->xRight) < CORNERDISTMAX &&
+                    fabs(yEnd - shape->yTop) < CORNERDISTMAX )
+                res = SS_RIGHT | SS_TOP;
+            else if( fabs(xBeg - shape->xLeft) < CORNERDISTMAX &&
+                    fabs(yBeg - shape->yBottom) < CORNERDISTMAX )
+                res = SS_LEFT | SS_BOTTOM;
+            /* go forth */
+        case ST_LINE:
+        case ST_ARROW:
+        case ST_TRIANGLE:
+            if( fabs(xBeg - shape->xRight) < CORNERDISTMAX &&
+                    fabs(yBeg - shape->yBottom) < CORNERDISTMAX )
+                res = SS_RIGHT | SS_BOTTOM;
+            else if( fabs(xBeg - shape->xLeft) < CORNERDISTMAX &&
+                    fabs(yBeg - shape->yTop) < CORNERDISTMAX )
+                res = SS_LEFT | SS_TOP;
+            break;
+        default:
+            break;
+        }
     }
-    if( height < 0 ) {
-        y += height;
-        height = -height;
-    }
-    x -= shape->xRef;
-    y -= shape->yRef;
-    switch( shape->type ) {
-    case ST_FREEFORM:
-        res = hittest_path(shape->path, shape->ptCount,
-                shape->params.thickness, x, y, x+width, y+height);
-        break;
-    case ST_LINE:
-        res = hittest_line(0, 0, shape->ptEnd.x, shape->ptEnd.y,
-                shape->params.thickness, x, y, x + width, y + height);
-        break;
-    case ST_TRIANGLE:
-        res = hittest_triangle(0, 0, shape->ptEnd.x, shape->ptEnd.y,
-                shape->params.angle, shape->params.round,
-                shape->params.thickness, x, y, x+width, y+height);
-        break;
-    case ST_RECT:
-        res = hittest_rect(0, 0, shape->ptEnd.x, shape->ptEnd.y,
-                shape->params.round, shape->params.thickness,
-                x, y, x + width, y + height);
-        break;
-    case ST_OVAL:
-        res = hittest_ellipse(0, 0, shape->ptEnd.x, shape->ptEnd.y,
-                shape->params.thickness, x, y, x + width, y + height);
-        break;
-    case ST_TEXT:
-        res = hittest_rect(
-                shape->ptEnd.x - 0.5 * shape->drawnTextWidth,
-                shape->ptEnd.y - 0.5 * shape->drawnTextHeight,
-                shape->ptEnd.x + 0.5 * shape->drawnTextWidth,
-                shape->ptEnd.y + 0.5 * shape->drawnTextHeight, 0,
-                shape->params.thickness, x, y, x + width, y + height);
-        break;
-    default:
-        res = hittest_arrow(0, 0, shape->ptEnd.x, shape->ptEnd.y,
-                shape->params.thickness, x, y, x + width, y + height);
-        break;
+    if( res == SS_NONE ) {
+        if( xEnd < xBeg ) {
+            gdouble t = xBeg;
+            xBeg = xEnd;
+            xEnd = t;
+        }
+        if( yEnd < yBeg ) {
+            gdouble t = yBeg;
+            yBeg = yEnd;
+            yEnd = t;
+        }
+        switch( shape->type ) {
+        case ST_FREEFORM:
+            if( hittest_path(shape->path, shape->ptCount,
+                    shape->params.thickness,
+                    xBeg - shape->xLeft, yBeg - shape->yTop,
+                    xEnd - shape->xLeft, yEnd - shape->yTop) )
+                res = SS_MID;
+            break;
+        case ST_LINE:
+            if( hittest_line(shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom,
+                    shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
+                res = SS_MID;
+            break;
+        case ST_TRIANGLE:
+            if( hittest_triangle(shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom,
+                    shape->params.angle, shape->params.round,
+                    shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
+                res = SS_MID;
+            break;
+        case ST_RECT:
+            if( hittest_rect(shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom,
+                    shape->params.round, shape->params.thickness,
+                    xBeg, yBeg, xEnd, yEnd) )
+                res = SS_MID;
+            break;
+        case ST_OVAL:
+            if( hittest_ellipse(shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom,
+                    shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
+                res = SS_MID;
+            break;
+        case ST_TEXT:
+            if( hittest_rect(
+                    shape->xRight - 0.5 * shape->drawnTextWidth,
+                    shape->yBottom - 0.5 * shape->drawnTextHeight,
+                    shape->xRight + 0.5 * shape->drawnTextWidth,
+                    shape->yBottom + 0.5 * shape->drawnTextHeight, 0,
+                    2 * shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
+                res = SS_MID;
+            break;
+        default:
+            if( hittest_arrow(shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom,
+                    shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
+                res = SS_MID;
+            break;
+        }
     }
     return res;
 }
@@ -281,14 +331,25 @@ static void strokeShape(const Shape *shape, cairo_t *cr,
         cairo_stroke(cr);
 }
 
-static void strokeResizePoint(cairo_t *cr, gdouble x, gdouble y)
+static void strokeResizePt(cairo_t *cr, gdouble x, gdouble y)
 {
-    cairo_rectangle(cr, x - 4, y - 4, 8, 8);
+    cairo_rectangle(cr, x - 3, y - 3, 6, 6);
     cairo_set_source_rgb(cr, 1, 1, 1);
     cairo_fill_preserve(cr);
     cairo_set_source_rgb(cr, 0, 0, 0);
     cairo_set_line_width(cr, 2);
     cairo_stroke(cr);
+}
+
+static void strokeResizePoints(const Shape *shape, cairo_t *cr,
+        gboolean strokeOppositeResize)
+{
+    if( strokeOppositeResize ) {
+        strokeResizePt(cr, shape->xLeft, shape->yBottom);
+        strokeResizePt(cr, shape->xRight, shape->yTop);
+    }
+    strokeResizePt(cr, shape->xLeft, shape->yTop);
+    strokeResizePt(cr, shape->xRight, shape->yBottom);
 }
 
 static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
@@ -320,13 +381,6 @@ static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
     }
     if( isSelected ) {
         strokeSelection(cr);
-        strokeResizePoint(cr, shape->xRef, shape->yRef);
-        if( strokeOppositeResize ) {
-            strokeResizePoint(cr, shape->xRef + shape->ptEnd.x, shape->yRef);
-            strokeResizePoint(cr, shape->xRef, shape->yRef + shape->ptEnd.y);
-        }
-        strokeResizePoint(cr, shape->xRef + shape->ptEnd.x,
-                shape->yRef + shape->ptEnd.y);
     }else
         cairo_new_path(cr);
 }
@@ -341,8 +395,8 @@ static void drawText(cairo_t *cr, Shape *shape,
 
     if( shape->params.text == NULL || shape->params.text[0] == '\0' )
         return;
-    xPaint = shape->xRef + posFactor * shape->ptEnd.x;
-    yPaint = shape->yRef + posFactor * shape->ptEnd.y;
+    xPaint = shape->xLeft + posFactor * (shape->xRight - shape->xLeft);
+    yPaint = shape->yTop + posFactor * (shape->yBottom - shape->yTop);
     layout = pango_cairo_create_layout(cr);
     pango_layout_set_text(layout, shape->params.text, -1);
     desc = pango_font_description_from_string(shape->params.fontName);
@@ -351,10 +405,10 @@ static void drawText(cairo_t *cr, Shape *shape,
     pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
     pango_layout_get_pixel_size(layout, &width, &height);
     if( drawBackground && shape->params.fillColor.alpha != 0.0 || isSelected ) {
-        cairo_rectangle(cr, xPaint - 0.5 * (width + shape->params.thickness),
-                yPaint - 0.5 * (height + shape->params.thickness),
-                width + shape->params.thickness,
-                height + shape->params.thickness);
+        cairo_rectangle(cr, xPaint - 0.5 * width - shape->params.thickness,
+                yPaint - 0.5 * height - shape->params.thickness,
+                width + 2.0 * shape->params.thickness,
+                height + 2.0 * shape->params.thickness);
         if( drawBackground && shape->params.fillColor.alpha != 0.0 ) {
             gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
             cairo_fill_preserve(cr);
@@ -374,69 +428,88 @@ static void drawText(cairo_t *cr, Shape *shape,
     shape->drawnTextHeight = height;
 }
 
-void shape_draw(Shape *shape, cairo_t *cr, gboolean isSelected)
+void shape_draw(Shape *shape, cairo_t *cr, gboolean isCurrent,
+        gboolean isSelected)
 {
     switch( shape->type ) {
     case ST_FREEFORM:
         if( shape->ptCount > 0 ) {
-            cairo_move_to(cr, shape->xRef, shape->yRef);
+            cairo_move_to(cr, shape->xLeft, shape->yTop);
             for(int j = 0; j < shape->ptCount; ++j)
-                cairo_line_to(cr, shape->xRef + shape->path[j].x,
-                        shape->yRef + shape->path[j].y);
-            strokeShape(shape, cr, isSelected);
+                cairo_line_to(cr, shape->xLeft + shape->path[j].x,
+                        shape->yTop + shape->path[j].y);
+        }else{
+            sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
+        strokeShape(shape, cr, isSelected);
         break;
     case ST_LINE:
-        if( shape->ptEnd.x != 0 || shape->ptEnd.y != 0 ) {
-            sd_pathLine(cr, shape->xRef, shape->yRef,
-                    shape->xRef + shape->ptEnd.x,
-                    shape->yRef + shape->ptEnd.y);
-            strokeShape(shape, cr, isSelected);
+        if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
+            sd_pathLine(cr, shape->xLeft, shape->yTop, shape->xRight,
+                    shape->yBottom);
+        }else{
+            sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
+        strokeShape(shape, cr, isSelected);
+        if( isCurrent && isSelected )
+            strokeResizePoints(shape, cr, FALSE);
         break;
     case ST_TRIANGLE:
-        if( shape->ptEnd.x != 0 || shape->ptEnd.y != 0 ) {
-            sd_pathTriangle(cr, shape->xRef, shape->yRef,
-                    shape->xRef + shape->ptEnd.x, shape->yRef + shape->ptEnd.y,
+        if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
+            sd_pathTriangle(cr, shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom,
                     shape->params.angle, shape->params.round);
-            strokeAndFillShape(shape, cr, isSelected, FALSE);
-            drawText(cr, shape, 2.0 / 3.0, FALSE, FALSE);
+        }else{
+            sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
+        strokeAndFillShape(shape, cr, isSelected, FALSE);
+        if( isCurrent && isSelected )
+            strokeResizePoints(shape, cr, FALSE);
+        drawText(cr, shape, 2.0 / 3.0, FALSE, FALSE);
         break;
     case ST_RECT:
-        if( shape->ptEnd.x != 0 || shape->ptEnd.y != 0 ) {
-            sd_pathRect(cr, shape->xRef, shape->yRef,
-                    shape->xRef + shape->ptEnd.x, shape->yRef + shape->ptEnd.y,
-                    shape->params.round);
-            strokeAndFillShape(shape, cr, isSelected, TRUE);
-            drawText(cr, shape, 0.5, FALSE, FALSE);
+        if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
+            sd_pathRect(cr, shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom, shape->params.round);
+        }else{
+            sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
+        strokeAndFillShape(shape, cr, isSelected, TRUE);
+        if( isCurrent && isSelected )
+            strokeResizePoints(shape, cr, TRUE);
+        drawText(cr, shape, 0.5, FALSE, FALSE);
         break;
     case ST_OVAL:
-        if( shape->ptEnd.x != 0 && shape->ptEnd.y != 0 ) {
-            sd_pathOval(cr, shape->xRef, shape->yRef,
-                    shape->xRef + shape->ptEnd.x,
-                    shape->yRef + shape->ptEnd.y);
-            strokeAndFillShape(shape, cr, isSelected, TRUE);
-            drawText(cr, shape, 0.5, FALSE, FALSE);
+        if( shape->xRight != shape->xLeft && shape->yBottom != shape->yTop ) {
+            sd_pathOval(cr, shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom);
+        }else{
+            sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
+        strokeAndFillShape(shape, cr, isSelected, TRUE);
+        if( isCurrent && isSelected )
+            strokeResizePoints(shape, cr, TRUE);
+        drawText(cr, shape, 0.5, FALSE, FALSE);
         break;
     case ST_TEXT:
         drawText(cr, shape, 1.0, TRUE, isSelected);
         break;
     case ST_ARROW:
-        if( shape->ptEnd.x != 0 || shape->ptEnd.y != 0 ) {
-            sd_pathArrow(cr, shape->xRef, shape->yRef, shape->ptEnd.x,
-                    shape->ptEnd.y, shape->params.thickness,
-                    shape->params.angle);
-            gdk_cairo_set_source_rgba (cr, &shape->params.strokeColor);
-            cairo_fill(cr);
-            if( isSelected ) {
-                cairo_move_to(cr, shape->xRef, shape->yRef);
-                cairo_line_to(cr, shape->xRef + shape->ptEnd.x,
-                        shape->yRef + shape->ptEnd.y);
-                strokeSelection(cr);
-            }
+        if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
+            sd_pathArrow(cr, shape->xLeft, shape->yTop,
+                    shape->xRight, shape->yBottom,
+                    shape->params.thickness, shape->params.angle);
+        }else{
+            sd_pathPoint(cr, shape->xLeft, shape->yTop);
+        }
+        gdk_cairo_set_source_rgba (cr, &shape->params.strokeColor);
+        cairo_fill(cr);
+        if( isSelected ) {
+            cairo_move_to(cr, shape->xLeft, shape->yTop);
+            cairo_line_to(cr, shape->xRight, shape->yBottom);
+            strokeSelection(cr);
+            if( isCurrent )
+                strokeResizePoints(shape, cr, FALSE);
         }
         break;
     }

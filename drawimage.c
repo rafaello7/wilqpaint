@@ -28,6 +28,7 @@ struct DrawImage {
     DrawImageState states[UNDO_MAX];
     gint stateFirst, stateCur, stateLast;
     gint curShapeIdx; /* STIDX_* or shape index */
+    enum ShapeSide moveShapeSide;
     gboolean isCurShapeModified;
     guint nextStateId;
     guint savedStateId;
@@ -55,6 +56,7 @@ DrawImage *di_new(gint imgWidth, gint imgHeight)
     di->stateCur = 0;
     di->stateLast = 0;
     di->curShapeIdx = STIDX_NOOP;
+    di->moveShapeSide = SS_NONE;
     di->isCurShapeModified = FALSE;
     di->nextStateId = 1;
     di->savedStateId = 0;
@@ -82,7 +84,8 @@ static void freeStates(DrawImageState *states, int first, int last)
     freeState(states + first);
 }
 
-static DrawImageState *getStateForModify(DrawImage *di, gint shapeIdx)
+static DrawImageState *getStateForModify(DrawImage *di, gint shapeIdx,
+        enum ShapeSide side)
 {
     DrawImageState *prev, *cur;
     int i;
@@ -122,6 +125,7 @@ static DrawImageState *getStateForModify(DrawImage *di, gint shapeIdx)
         if( shapeIdx >= 0 )
             shape_replaceDup(cur->shapes + shapeIdx);
         di->curShapeIdx = shapeIdx;
+        di->moveShapeSide = side;
         di->isCurShapeModified = TRUE;
     }
     return cur;
@@ -164,7 +168,7 @@ gdouble di_getYRef(const DrawImage *di)
 
 void di_setBackgroundColor(DrawImage *di, const GdkRGBA *color)
 {
-    DrawImageState *state = getStateForModify(di, STIDX_SETBACKGROUND);
+    DrawImageState *state = getStateForModify(di, STIDX_SETBACKGROUND, SS_NONE);
     state->imgBgColor = *color;
 }
 
@@ -177,7 +181,7 @@ void di_addShape(DrawImage *di, ShapeType shapeType,
         gdouble xRef, gdouble yRef, const ShapeParams *shapeParams)
 {
     Shape *shape;
-    DrawImageState *state = getStateForModify(di, STIDX_NEWSHAPE);
+    DrawImageState *state = getStateForModify(di, STIDX_NEWSHAPE, SS_NONE);
 
     shape = shape_new(shapeType, xRef - state->imgXRef, yRef - state->imgYRef,
             shapeParams);
@@ -185,6 +189,9 @@ void di_addShape(DrawImage *di, ShapeType shapeType,
     state->shapes = g_realloc(state->shapes,
             ++state->shapeCount * sizeof(Shape*));
     state->shapes[di->curShapeIdx] = shape;
+    di->moveShapeSide = SS_RIGHT | SS_BOTTOM | SS_CREATE;
+    di->selXRef = xRef;
+    di->selYRef = yRef;
     g_hash_table_remove_all(di->selection);
 }
 
@@ -198,15 +205,6 @@ static Shape *curShape(const DrawImage *di)
     const DrawImageState *state = di->states + di->stateCur;
     g_assert(di->curShapeIdx < state->shapeCount);
     return state->shapes[di->curShapeIdx];
-}
-
-void di_curShapeAddPoint(DrawImage *di, gdouble x, gdouble y)
-{
-    if( di->curShapeIdx >= 0 ) {
-        DrawImageState *state = getStateForModify(di, di->curShapeIdx);
-        shape_addPoint(state->shapes[di->curShapeIdx],
-                x - state->imgXRef, y - state->imgYRef);
-    }
 }
 
 ShapeType di_getCurShapeType(const DrawImage *di)
@@ -244,39 +242,43 @@ void di_redo(DrawImage *di)
 }
 
 gboolean di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
-        gboolean rectSelection, gboolean extend)
+        gboolean isRect, gboolean extend)
 {
     DrawImageState *state = di->states + di->stateCur;
     int shapeIdx;
     gpointer idxAsPtr;
+    enum ShapeSide side;
 
     g_hash_table_remove_all(di->addedByRectSel);
     if( ! extend )
         g_hash_table_remove_all(di->selection);
     di->curShapeIdx = STIDX_NOOP;
-    shapeIdx = state->shapeCount - 1;
-    while(shapeIdx >= 0 && di->curShapeIdx == STIDX_NOOP ) {
-        if( shape_hitTest(state->shapes[shapeIdx],
-                    x - state->imgXRef, y - state->imgYRef, 0, 0) )
-        {
-            di->curShapeIdx = shapeIdx;
+    di->moveShapeSide = SS_MID;
+    if( isRect ) {
+        for( shapeIdx = state->shapeCount - 1; shapeIdx >= 0; --shapeIdx ) {
             idxAsPtr = GINT_TO_POINTER(shapeIdx);
-            if( ! g_hash_table_contains(di->selection, idxAsPtr) ) {
+            if( ! g_hash_table_contains(di->selection, idxAsPtr)
+                && (side = shape_hitTest(state->shapes[shapeIdx],
+                    x - state->imgXRef, y - state->imgYRef,
+                    x - state->imgXRef, y - state->imgYRef)) != SS_NONE)
+            {
                 g_hash_table_add(di->addedByRectSel, idxAsPtr);
                 g_hash_table_add(di->selection, idxAsPtr);
             }
         }
-        --shapeIdx;
-    }
-    if( rectSelection ) {
-        while( shapeIdx >= 0 ) {
-            idxAsPtr = GINT_TO_POINTER(shapeIdx);
-            if( ! g_hash_table_contains(di->selection, idxAsPtr)
-                && shape_hitTest(state->shapes[shapeIdx],
-                        x - state->imgXRef, y - state->imgYRef, 0, 0) )
+    }else{
+        shapeIdx = state->shapeCount - 1;
+        while( shapeIdx >= 0 && di->curShapeIdx == STIDX_NOOP ) {
+            if( (side = shape_hitTest(state->shapes[shapeIdx],
+                    x - state->imgXRef, y - state->imgYRef,
+                    x - state->imgXRef, y - state->imgYRef)) != SS_NONE )
             {
-                g_hash_table_add(di->addedByRectSel, idxAsPtr);
-                g_hash_table_add(di->selection, idxAsPtr);
+                di->curShapeIdx = shapeIdx;
+                idxAsPtr = GINT_TO_POINTER(shapeIdx);
+                if( ! g_hash_table_contains(di->selection, idxAsPtr) )
+                    g_hash_table_add(di->selection, idxAsPtr);
+                if( ! extend )
+                    di->moveShapeSide = side;
             }
             --shapeIdx;
         }
@@ -287,8 +289,7 @@ gboolean di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
     return di->curShapeIdx != STIDX_NOOP;
 }
 
-void di_selectionFromRect(DrawImage *di, gdouble xBeg, gdouble yBeg,
-        gdouble width, gdouble height)
+void di_selectionFromRect(DrawImage *di, gdouble x, gdouble y)
 {
     DrawImageState *state = di->states + di->stateCur;
     int shapeIdx;
@@ -302,8 +303,9 @@ void di_selectionFromRect(DrawImage *di, gdouble xBeg, gdouble yBeg,
     for(shapeIdx = 0; shapeIdx < state->shapeCount; ++shapeIdx) {
         idxAsPtr = GINT_TO_POINTER(shapeIdx);
         if( ! g_hash_table_contains(di->selection, idxAsPtr)
-            && shape_hitTest(state->shapes[shapeIdx], xBeg - state->imgXRef,
-                yBeg - state->imgYRef, width, height) )
+            && shape_hitTest(state->shapes[shapeIdx],
+                di->selXRef - state->imgXRef, di->selYRef - state->imgYRef,
+                x - state->imgXRef, y - state->imgYRef) )
         {
             g_hash_table_add(di->addedByRectSel, idxAsPtr);
             g_hash_table_add(di->selection, idxAsPtr);
@@ -318,7 +320,7 @@ void di_setSelectionParam(DrawImage *di, enum ShapeParam shapeParam,
     gpointer key;
 
     if( g_hash_table_size(di->selection) >= 0 ) {
-        DrawImageState *state = getStateForModify(di, di->curShapeIdx);
+        DrawImageState *state = getStateForModify(di, di->curShapeIdx, SS_NONE);
         g_hash_table_iter_init(&iter, di->selection);
         while( g_hash_table_iter_next(&iter, &key, NULL) ) {
             gint shapeIdx = GPOINTER_TO_INT(key);
@@ -332,17 +334,26 @@ void di_selectionMoveTo(DrawImage *di, gdouble x, gdouble y)
     GHashTableIter iter;
     gpointer key;
 
-    if( g_hash_table_size(di->selection) >= 0 ) {
-        DrawImageState *state = getStateForModify(di, di->curShapeIdx);
+    gboolean isInit = ! di->isCurShapeModified;
+    if( g_hash_table_size(di->selection) > 0 ) {
+        DrawImageState *state = getStateForModify(di, di->curShapeIdx,
+                di->moveShapeSide);
         g_hash_table_iter_init(&iter, di->selection);
         while( g_hash_table_iter_next(&iter, &key, NULL) ) {
             gint shapeIdx = GPOINTER_TO_INT(key);
-            shape_moveRel(state->shapes[shapeIdx],
-                    x - di->selXRef, y - di->selYRef);
+            if( isInit )
+                shape_moveBeg(state->shapes[shapeIdx]);
+            shape_moveTo(state->shapes[shapeIdx],
+                    x - di->selXRef, y - di->selYRef, di->moveShapeSide);
         }
+    }else if( di->curShapeIdx >= 0 && di->moveShapeSide != SS_NONE ) {
+        DrawImageState *state = getStateForModify(di, di->curShapeIdx,
+                di->moveShapeSide);
+        if( isInit )
+            shape_moveBeg(state->shapes[di->curShapeIdx]);
+        shape_moveTo(state->shapes[di->curShapeIdx],
+                x - di->selXRef, y - di->selYRef, di->moveShapeSide);
     }
-    di->selXRef = x;
-    di->selYRef = y;
 }
 
 gboolean di_selectionDelete(DrawImage *di)
@@ -350,7 +361,7 @@ gboolean di_selectionDelete(DrawImage *di)
 
     if( g_hash_table_size(di->selection) >= 0 ) {
         int src, dest = 0;
-        DrawImageState *state = getStateForModify(di, STIDX_DELSHAPE);
+        DrawImageState *state = getStateForModify(di, STIDX_DELSHAPE, SS_NONE);
         for(src = 0; src < state->shapeCount; ++src) {
             if( g_hash_table_contains(di->selection, GINT_TO_POINTER(src)) ) {
                 shape_unref(state->shapes[src]);
@@ -380,7 +391,7 @@ gboolean di_selectionSetEmpty(DrawImage *di)
 void di_scale(DrawImage *di, gdouble factor)
 {
     int i;
-    DrawImageState *state = getStateForModify(di, STIDX_SCALE);
+    DrawImageState *state = getStateForModify(di, STIDX_SCALE, SS_NONE);
 
     for(i = 0; i < state->shapeCount; ++i) {
         Shape *shape = shape_replaceDup(state->shapes + i);
@@ -406,7 +417,7 @@ void di_scale(DrawImage *di, gdouble factor)
 
 void di_moveTo(DrawImage *di, gdouble imgXRef, gdouble imgYRef)
 {
-    DrawImageState *state = getStateForModify(di, STIDX_MOVE);
+    DrawImageState *state = getStateForModify(di, STIDX_MOVE, SS_NONE);
     state->imgXRef = imgXRef;
     state->imgYRef = imgYRef;
     g_hash_table_remove_all(di->selection);
@@ -415,7 +426,7 @@ void di_moveTo(DrawImage *di, gdouble imgXRef, gdouble imgYRef)
 void di_setSize(DrawImage *di, gint imgWidth, gint imgHeight,
         gdouble translateXfactor, gdouble translateYfactor)
 {
-    DrawImageState *state = getStateForModify(di, STIDX_MOVE);
+    DrawImageState *state = getStateForModify(di, STIDX_MOVE, SS_NONE);
     state->imgXRef += translateXfactor * (imgWidth - state->imgWidth);
     state->imgYRef += translateYfactor * (imgHeight - state->imgHeight);
     state->imgWidth = imgWidth;
@@ -440,7 +451,7 @@ void di_draw(const DrawImage *di, cairo_t *cr)
         cairo_paint(cr);
     }
     for(int i = 0; i < state->shapeCount; ++i)
-        shape_draw(state->shapes[i], cr,
+        shape_draw(state->shapes[i], cr, i == di->curShapeIdx,
                 g_hash_table_contains(di->selection, GINT_TO_POINTER(i)));
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 )
         cairo_restore(cr);

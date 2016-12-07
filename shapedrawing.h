@@ -2,6 +2,8 @@
 #define SHAPEDRAWING_H
 
 
+void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y);
+
 void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2);
 
 void sd_pathArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
