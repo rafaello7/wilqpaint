@@ -79,11 +79,6 @@
     <property name="can_focus">False</property>
     <property name="resource">/org/rafaello7/wilqpaint/img/pin_top.png</property>
   </object>
-  <object class="GtkImage" id="imagePinVCenter">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/pin_center.png</property>
-  </object>
   <object class="GtkImage" id="imageRect">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -561,19 +556,19 @@
                               <object class="GtkGrid">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
+                                <property name="halign">center</property>
                                 <property name="margin_bottom">10</property>
+                                <property name="column_spacing">4</property>
                                 <child>
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
-                                    <property name="label" translatable="yes">image
-height:</property>
+                                    <property name="label" translatable="yes">X</property>
                                     <property name="justify">center</property>
                                   </object>
                                   <packing>
-                                    <property name="left_attach">0</property>
-                                    <property name="top_attach">0</property>
-                                    <property name="height">3</property>
+                                    <property name="left_attach">1</property>
+                                    <property name="top_attach">1</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -589,51 +584,37 @@ height:</property>
                                     <signal name="value-changed" handler="on_spinImageSize_value_changed" swapped="no"/>
                                   </object>
                                   <packing>
-                                    <property name="left_attach">1</property>
-                                    <property name="top_attach">0</property>
-                                    <property name="height">3</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkRadioButton" id="pinTop">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="receives_default">False</property>
-                                    <property name="image">imagePinTop</property>
-                                    <property name="draw_indicator">False</property>
-                                    <property name="group">pinVCenter</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left_attach">2</property>
-                                    <property name="top_attach">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkRadioButton" id="pinVCenter">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="receives_default">False</property>
-                                    <property name="image">imagePinVCenter</property>
-                                    <property name="active">True</property>
-                                    <property name="draw_indicator">False</property>
-                                  </object>
-                                  <packing>
                                     <property name="left_attach">2</property>
                                     <property name="top_attach">1</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkRadioButton" id="pinBottom">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
-                                    <property name="can_focus">True</property>
-                                    <property name="receives_default">False</property>
-                                    <property name="image">imagePinBottom</property>
-                                    <property name="draw_indicator">False</property>
-                                    <property name="group">pinVCenter</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="halign">start</property>
+                                    <property name="label" translatable="yes">image size:</property>
                                   </object>
                                   <packing>
-                                    <property name="left_attach">2</property>
-                                    <property name="top_attach">2</property>
+                                    <property name="left_attach">0</property>
+                                    <property name="top_attach">0</property>
+                                    <property name="width">3</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkSpinButton" id="spinImageWidth">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="caps_lock_warning">False</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="adjustment">adjustmentImageWidth</property>
+                                    <property name="climb_rate">1</property>
+                                    <property name="numeric">True</property>
+                                    <signal name="value-changed" handler="on_spinImageSize_value_changed" swapped="no"/>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">0</property>
+                                    <property name="top_attach">1</property>
                                   </packing>
                                 </child>
                               </object>
@@ -650,43 +631,28 @@ height:</property>
                                 <property name="halign">center</property>
                                 <property name="margin_bottom">10</property>
                                 <child>
-                                  <object class="GtkLabel">
-                                    <property name="visible">True</property>
-                                    <property name="can_focus">False</property>
-                                    <property name="halign">start</property>
-                                    <property name="label" translatable="yes">image width:</property>
-                                  </object>
-                                  <packing>
-                                    <property name="left_attach">0</property>
-                                    <property name="top_attach">0</property>
-                                    <property name="width">3</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkSpinButton" id="spinImageWidth">
+                                  <object class="GtkRadioButton" id="marginTop">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <property name="caps_lock_warning">False</property>
-                                    <property name="adjustment">adjustmentImageWidth</property>
-                                    <property name="climb_rate">1</property>
-                                    <property name="numeric">True</property>
-                                    <signal name="value-changed" handler="on_spinImageSize_value_changed" swapped="no"/>
+                                    <property name="receives_default">False</property>
+                                    <property name="image">imagePinTop</property>
+                                    <property name="draw_indicator">False</property>
+                                    <property name="group">marginCenter</property>
                                   </object>
                                   <packing>
-                                    <property name="left_attach">0</property>
+                                    <property name="left_attach">1</property>
                                     <property name="top_attach">1</property>
-                                    <property name="width">3</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkRadioButton" id="pinLeft">
+                                  <object class="GtkRadioButton" id="marginLeft">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="halign">start</property>
                                     <property name="image">imagePinLeft</property>
                                     <property name="draw_indicator">False</property>
-                                    <property name="group">pinHCenter</property>
+                                    <property name="group">marginCenter</property>
                                   </object>
                                   <packing>
                                     <property name="left_attach">0</property>
@@ -694,7 +660,7 @@ height:</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkRadioButton" id="pinHCenter">
+                                  <object class="GtkRadioButton" id="marginCenter">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
@@ -709,19 +675,58 @@ height:</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkRadioButton" id="pinRight">
+                                  <object class="GtkRadioButton" id="marginRight">
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">False</property>
                                     <property name="halign">end</property>
                                     <property name="image">imagePinRight</property>
                                     <property name="draw_indicator">False</property>
-                                    <property name="group">pinHCenter</property>
+                                    <property name="group">marginCenter</property>
                                   </object>
                                   <packing>
                                     <property name="left_attach">2</property>
                                     <property name="top_attach">2</property>
                                   </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkRadioButton" id="marginBottom">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="receives_default">False</property>
+                                    <property name="image">imagePinBottom</property>
+                                    <property name="draw_indicator">False</property>
+                                    <property name="group">marginCenter</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">1</property>
+                                    <property name="top_attach">3</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="halign">start</property>
+                                    <property name="label" translatable="yes">adjust margins:</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">0</property>
+                                    <property name="top_attach">0</property>
+                                    <property name="width">3</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
                                 </child>
                               </object>
                               <packing>

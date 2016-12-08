@@ -467,17 +467,17 @@ gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
 void on_spinImageSize_value_changed(GtkSpinButton *spin, gpointer user_data)
 {
-    gdouble translateXfactor = 0.0, translateYfactor = 0.0;
+    gdouble translateXfactor = 0.5, translateYfactor = 0.5;
 
     if( shapeControlsSetInProgress == 0 ) {
-        if( isToggleButtonActive("pinHCenter") )
-            translateXfactor = 0.5;
-        else if( isToggleButtonActive("pinRight") )
+        if( isToggleButtonActive("marginLeft") )
             translateXfactor = 1.0;
-        if( isToggleButtonActive("pinVCenter") )
-            translateYfactor = 0.5;
-        else if( isToggleButtonActive("pinBottom") )
+        else if( isToggleButtonActive("marginRight") )
+            translateXfactor = 0.0;
+        else if( isToggleButtonActive("marginTop") )
             translateYfactor = 1.0;
+        else if( isToggleButtonActive("marginBottom") )
+            translateYfactor = 0.0;
         di_setSize(drawImage, getSpinButtonValue("spinImageWidth"),
                 getSpinButtonValue("spinImageHeight"),
                 translateXfactor, translateYfactor);
