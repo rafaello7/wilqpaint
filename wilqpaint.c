@@ -110,6 +110,20 @@ void adjustDrawingSize(gboolean adjustImageSizeSpins)
     }
 }
 
+static void redrawShapePreview(void)
+{
+    GtkWidget *drawing = GTK_WIDGET(gtk_builder_get_object(builder,
+                "shapePreview"));
+    GdkRectangle update_rect;
+    update_rect.x = 0;
+    update_rect.y = 0;
+    update_rect.width = gtk_widget_get_allocated_width (drawing);
+    update_rect.height = gtk_widget_get_allocated_height (drawing);
+    GdkWindow *gdkWin = gtk_widget_get_window (drawing);
+    gdk_window_invalidate_rect (gtk_widget_get_window(drawing),
+            &update_rect, FALSE);
+}
+
 static void adjustBackgroundColorControl(void)
 {
     GtkColorChooser *bgColorButton;
@@ -183,6 +197,73 @@ static void getShapeParamsFromControls(ShapeParams *shapeParams)
     shapeParams->fontName = gtk_font_button_get_font_name(fontButton);
 }
 
+void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+    ShapeParams shapeParams;
+    Shape *shape = NULL;
+    int width, height, i;
+    enum ShapeSide side = SS_RIGHT | SS_BOTTOM | SS_CREATE;
+    gdouble thickness, round;
+
+    width = gtk_widget_get_allocated_width(widget);
+    height = gtk_widget_get_allocated_height(widget);
+    if( width <= 20 || height <= 20 )
+        return;
+    getShapeParamsFromControls(&shapeParams);
+    g_free((void*)shapeParams.text);
+    shapeParams.text = NULL;
+    thickness = shapeParams.thickness;
+    round = shapeParams.round;
+    if( isToggleButtonActive("shapeFreeForm") ) {
+        shape = shape_new(ST_FREEFORM, 0, height / 6, &shapeParams);
+        for(i = 0; i < width; i += 4) {
+            shape_moveTo(shape, i, 0.20 * height
+                    * (3.0 - cos(53.0 * G_PI / width)
+                        - 4.0 * fabs(i - 0.5 * width) / width
+                        - cos(5.3 * (i - 10) / width * G_PI)), side);
+        }
+    }else if( isToggleButtonActive("shapeLine") ) {
+        shape = shape_new(ST_LINE, 2, height/2, &shapeParams);
+        shape_moveTo(shape, width - 4, 0, side);
+    }else if( isToggleButtonActive("shapeTriangle") ) {
+        gdouble h, wtoh = 2.0 * tan(shapeParams.angle * G_PI / 360);
+        h = (height - thickness - 8) * wtoh > width - thickness - 4 ?
+            (width - thickness - 8) / wtoh : height - thickness - 4;
+        shape = shape_new(ST_TRIANGLE, width/2,
+                0.5 * (height - h), &shapeParams);
+        shape_moveTo(shape, 0, h, side);
+    }else if( isToggleButtonActive("shapeRect") ) {
+        shape = shape_new(ST_RECT,
+                2 + 0.5 * thickness + 0.5 * round * (2 - G_SQRT2),
+                2 + 0.5 * thickness + 0.5 * round * (2 - G_SQRT2),
+                &shapeParams);
+        shape_moveTo(shape,
+                width - 4 - thickness - round * (2 - G_SQRT2),
+                height - 4 - thickness - round * (2 - G_SQRT2), side);
+    }else if( isToggleButtonActive("shapeOval") ) {
+        shape = shape_new(ST_OVAL,
+                0.25 * (width - thickness - 4) * (2 - G_SQRT2)
+                + 0.5 * thickness + 2,
+                0.25 * (height - thickness - 4) * (2 - G_SQRT2)
+                + 0.5 * thickness + 2,
+                &shapeParams);
+        shape_moveTo(shape,
+                0.5 * G_SQRT2 * (width - thickness - 4),
+                0.5 * G_SQRT2 * (height - thickness - 4), side);
+    }else if( isToggleButtonActive("shapeText") ) {
+        shapeParams.text = "Ww";
+        shape = shape_new(ST_TEXT, 10, 10, &shapeParams);
+        shape_moveTo(shape, width/2 - 10, height/2 - 10, side);
+    }else{
+        shape = shape_new(ST_ARROW, 2, height/2, &shapeParams);
+        shape_moveTo(shape, width - 4, 0, side);
+    }
+    if( shape != NULL ) {
+        shape_draw(shape, cr, FALSE, FALSE);
+        shape_unref(shape);
+    }
+}
+
 void on_thickness_value_changed(GtkSpinButton *spin, gpointer user_data)
 {
     ShapeParams shapeParams;
@@ -191,6 +272,7 @@ void on_thickness_value_changed(GtkSpinButton *spin, gpointer user_data)
         shapeParams.thickness = gtk_spin_button_get_value(spin);
         di_setSelectionParam(drawImage, SP_THICKNESS, &shapeParams);
         redrawDrawing();
+        redrawShapePreview();
     }
 }
 
@@ -202,6 +284,7 @@ void on_round_value_changed(GtkSpinButton *spin, gpointer user_data)
         shapeParams.round = gtk_spin_button_get_value(spin);
         di_setSelectionParam(drawImage, SP_ROUND, &shapeParams);
         redrawDrawing();
+        redrawShapePreview();
     }
 }
 
@@ -213,6 +296,7 @@ void on_angle_value_changed(GtkSpinButton *spin, gpointer user_data)
         shapeParams.angle = gtk_spin_button_get_value(spin);
         di_setSelectionParam(drawImage, SP_ANGLE, &shapeParams);
         redrawDrawing();
+        redrawShapePreview();
     }
 }
 
@@ -266,6 +350,7 @@ void on_strokeColor_color_set(GtkColorButton *colorButton, gpointer user_data)
                 &shapeParams.textColor);
         di_setSelectionParam(drawImage, SP_STROKECOLOR, &shapeParams);
         redrawDrawing();
+        redrawShapePreview();
     }
 }
 
@@ -278,6 +363,7 @@ void on_fillColor_color_set(GtkColorButton *colorButton, gpointer user_data)
                 &shapeParams.textColor);
         di_setSelectionParam(drawImage, SP_FILLCOLOR, &shapeParams);
         redrawDrawing();
+        redrawShapePreview();
     }
 }
 
@@ -298,6 +384,7 @@ void onShapeColorChosen(enum ChosenColor cc)
         di_setSelectionParam(drawImage, SP_FILLCOLOR, &shapeParams);
     }
     redrawDrawing();
+    redrawShapePreview();
 }
 
 static void setZoom1x(void)
@@ -508,6 +595,7 @@ static void setShapeToolsActivePage(ShapeToolsPage stp)
         selWidth = selHeight = 0;
         redrawDrawing();
     }
+    redrawShapePreview();
 }
 
 void on_shapeSelect_toggled(GtkToggleButton *toggle, gpointer user_data)

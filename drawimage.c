@@ -319,7 +319,7 @@ void di_setSelectionParam(DrawImage *di, enum ShapeParam shapeParam,
     GHashTableIter iter;
     gpointer key;
 
-    if( g_hash_table_size(di->selection) >= 0 ) {
+    if( g_hash_table_size(di->selection) > 0 ) {
         DrawImageState *state = getStateForModify(di, di->curShapeIdx, SS_NONE);
         g_hash_table_iter_init(&iter, di->selection);
         while( g_hash_table_iter_next(&iter, &key, NULL) ) {
