@@ -234,12 +234,12 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shape_moveTo(shape, 0, h, side);
     }else if( isToggleButtonActive("shapeRect") ) {
         shape = shape_new(ST_RECT,
-                2 + 0.5 * thickness + 0.5 * round * (2 - G_SQRT2),
-                2 + 0.5 * thickness + 0.5 * round * (2 - G_SQRT2),
+                8 + 0.5 * thickness + 0.5 * round * (2 - G_SQRT2),
+                8 + 0.5 * thickness + 0.5 * round * (2 - G_SQRT2),
                 &shapeParams);
         shape_moveTo(shape,
-                width - 4 - thickness - round * (2 - G_SQRT2),
-                height - 4 - thickness - round * (2 - G_SQRT2), side);
+                width - 16 - thickness - round * (2 - G_SQRT2),
+                height - 16 - thickness - round * (2 - G_SQRT2), side);
     }else if( isToggleButtonActive("shapeOval") ) {
         shape = shape_new(ST_OVAL,
                 0.25 * (width - thickness - 4) * (2 - G_SQRT2)
@@ -254,7 +254,7 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shapeParams.text = "Ww";
         shape = shape_new(ST_TEXT, 10, 10, &shapeParams);
         shape_moveTo(shape, width/2 - 10, height/2 - 10, side);
-    }else{
+    }else if( isToggleButtonActive("shapeArrow") ) {
         shape = shape_new(ST_ARROW, 2, height/2, &shapeParams);
         shape_moveTo(shape, width - 4, 0, side);
     }
