@@ -1,7 +1,9 @@
 OBJS = hittest.o shapedrawing.o shape.o drawimage.o colorchooser.o 		\
-	   wilqpaint.o sizedialog.o griddialog.o quitdialog.o resources.o
+	   wilqpaint.o sizedialog.o griddialog.o quitdialog.o aboutdialog.o \
+	   resources.o
 
-UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui menubar.ui
+UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui aboutdialog.ui \
+	  menubar.ui
 
 IMG = img/area.png img/arrow.png        img/free.png      img/imagesize.png \
 	  img/line.png img/oval.png         img/rectangle.png img/select.png \

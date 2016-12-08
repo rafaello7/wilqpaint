@@ -5,6 +5,7 @@
 #include "sizedialog.h"
 #include "griddialog.h"
 #include "quitdialog.h"
+#include "aboutdialog.h"
 #include "drawimage.h"
 #include "colorchooser.h"
 
@@ -837,6 +838,15 @@ static void menu_grid_snap (GSimpleAction *action, GVariant *state,
     g_simple_action_set_state(action, state);
 }
 
+static void on_menu_about(GSimpleAction *action, GVariant *parameter,
+        gpointer window)
+{
+    GtkWindow *mainWindow;
+
+    mainWindow = GTK_WINDOW(gtk_builder_get_object(builder, "mainWindow"));
+    showAboutDialog(mainWindow);
+}
+
 static void initializeApp(GtkApplication* app, const char *fname)
 {
     static GActionEntry win_entries[] =
@@ -855,7 +865,9 @@ static void initializeApp(GtkApplication* app, const char *fname)
         { "image-zoom", NULL, "s", "'1'", menu_image_set_zoom },
         { "grid-options", on_menu_grid_options, NULL, NULL, NULL },
         { "grid-show", NULL, NULL, "false", menu_grid_show },
-        { "grid-snap", NULL, NULL, "false", menu_grid_snap }
+        { "grid-snap", NULL, NULL, "false", menu_grid_snap },
+        /* Help */
+        { "help-about",  on_menu_about,  NULL, NULL, NULL }
     };
     GtkWidget *window, *drawing;
     GtkBuilder *menuBld;
