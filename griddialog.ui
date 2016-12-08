@@ -60,7 +60,9 @@
           <object class="GtkGrid">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="column_spacing">10</property>
+            <property name="margin_bottom">20</property>
+            <property name="row_spacing">2</property>
+            <property name="column_spacing">20</property>
             <child>
               <object class="GtkLabel">
                 <property name="visible">True</property>
@@ -129,6 +131,38 @@
                 <property name="left_attach">0</property>
                 <property name="top_attach">2</property>
               </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="showGrid">
+                <property name="label" translatable="yes">show grid</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">False</property>
+                <property name="draw_indicator">True</property>
+              </object>
+              <packing>
+                <property name="left_attach">1</property>
+                <property name="top_attach">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="snapToGrid">
+                <property name="label" translatable="yes">snap to grid</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">False</property>
+                <property name="draw_indicator">True</property>
+              </object>
+              <packing>
+                <property name="left_attach">1</property>
+                <property name="top_attach">4</property>
+              </packing>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+            <child>
+              <placeholder/>
             </child>
           </object>
           <packing>

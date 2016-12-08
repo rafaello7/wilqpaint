@@ -22,8 +22,6 @@ static gdouble moveXref, moveYref;
 static gdouble selXref, selYref, selWidth, selHeight;
 static GtkBuilder *builder;
 static gdouble curZoom = 1.0;
-static gboolean showGrid = FALSE;
-static gboolean snapToGrid = FALSE;
 static gint shapeControlsSetInProgress = 0;
 
 
@@ -316,12 +314,12 @@ static void setZoom1x(void)
 
 static gdouble snapXValue(gdouble val)
 {
-    return snapToGrid ? grid_getSnapXValue(val) : val;
+    return grid_isSnapTo() ? grid_getSnapXValue(val) : val;
 }
 
 static gdouble snapYValue(gdouble val)
 {
-    return snapToGrid ? grid_getSnapYValue(val) : val;
+    return grid_isSnapTo() ? grid_getSnapYValue(val) : val;
 }
 
 gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
@@ -425,7 +423,7 @@ gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     di_draw(drawImage, cr);
     cairo_restore(cr);
     scale = grid_getScale() * curZoom;
-    if( showGrid && scale > 2 ) {
+    if( grid_isShow() && scale > 2 ) {
         gridXOffset = grid_getXOffset() * curZoom;
         gridYOffset = grid_getYOffset() * curZoom;
         if( scale < 32 ) {
@@ -802,8 +800,17 @@ static void menu_image_set_zoom(GSimpleAction *action, GVariant *state,
 
 static void onGridDialogChange(void)
 {
-    if( showGrid )
-        redrawDrawing();
+    GActionMap *actionMap;
+    GAction *action;
+    GVariant *state;
+   
+    actionMap = G_ACTION_MAP(gtk_builder_get_object(builder,
+                "mainWindow"));
+    action = g_action_map_lookup_action(actionMap, "grid-show");
+    g_action_change_state(action, g_variant_new_boolean(grid_isShow()));
+    action = g_action_map_lookup_action(actionMap, "grid-snap");
+    g_action_change_state(action, g_variant_new_boolean(grid_isSnapTo()));
+    redrawDrawing();
 }
 
 static void on_menu_grid_options(GSimpleAction *action, GVariant *parameter,
@@ -818,7 +825,7 @@ static void on_menu_grid_options(GSimpleAction *action, GVariant *parameter,
 static void menu_grid_show (GSimpleAction *action, GVariant *state,
         gpointer user_data)
 {
-    showGrid = g_variant_get_boolean (state);
+    grid_setIsShow(g_variant_get_boolean(state));
     g_simple_action_set_state (action, state);
     redrawDrawing();
 }
@@ -826,7 +833,7 @@ static void menu_grid_show (GSimpleAction *action, GVariant *state,
 static void menu_grid_snap (GSimpleAction *action, GVariant *state,
         gpointer user_data)
 {
-    snapToGrid = g_variant_get_boolean (state);
+    grid_setIsSnapTo(g_variant_get_boolean (state));
     g_simple_action_set_state(action, state);
 }
 
