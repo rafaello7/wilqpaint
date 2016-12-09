@@ -204,14 +204,16 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     int i;
     enum ShapeSide side = SS_RIGHT | SS_BOTTOM | SS_CREATE;
     gdouble thickness, round, winWidth, winHeight, shapeWidth, shapeHeight;
+    gboolean hasText;
 
     winWidth = gtk_widget_get_allocated_width(widget);
     winHeight = gtk_widget_get_allocated_height(widget);
     if( winWidth <= 20 || winHeight <= 20 )
         return;
     getShapeParamsFromControls(&shapeParams);
+    hasText = shapeParams.text && shapeParams.text[0];
     g_free((void*)shapeParams.text);
-    shapeParams.text = NULL;
+    shapeParams.text = hasText ? "Ww" : NULL;
     thickness = shapeParams.thickness;
     round = shapeParams.round;
     if( isToggleButtonActive("shapeFreeForm") ) {
@@ -248,11 +250,10 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
             gdouble hh = winHeight - htop - hbottom - 8;
             gdouble hw = 0.5 * (winWidth - 8) / tan(angle);
             /* 12 degrees boundary of opposite angle */
-            if( shapeParams.angle <= 180 - 2 * 12 ) {
+            if( shapeParams.angle <= 180 - 2 * 12 )
                 hw -= 0.5 * thickness * (1.0 + 1.0 / sin(angle));
-            }else{
+            else
                 hw -= 0.5 * thickness / tan(angle);
-            }
             shapeHeight = fmax(1, fmin(hh, hw));
         }else{
             htop = 0.5 * thickness;
@@ -346,6 +347,7 @@ void on_shapeTextBuffer_changed(GtkTextBuffer *textBuffer, gpointer user_data)
         di_setSelectionParam(drawImage, SP_TEXT, &shapeParams);
         g_free((char*)shapeParams.text);
         redrawDrawing();
+        redrawShapePreview();
     }
 }
 
