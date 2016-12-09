@@ -38,7 +38,7 @@ typedef struct {
     GdkRGBA fillColor;
     GdkRGBA textColor;
     gdouble thickness;
-    int angle;
+    gdouble angle;
     gdouble round;
     const char *text;
     const char *fontName;
@@ -76,5 +76,7 @@ enum ShapeSide shape_hitTest(const Shape*, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd);
 void shape_draw(Shape*, cairo_t*, gboolean isCurrent, gboolean isSelected);
 
+Shape *shape_readFromFile(FILE*);
+void shape_writeToFile(const Shape*, FILE*);
 
 #endif /* SHAPE_H */

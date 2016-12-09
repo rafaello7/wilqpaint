@@ -14,7 +14,7 @@ void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2)
 }
 
 void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
-        double xRight, gdouble yBottom, gdouble thickness, gint angle)
+        double xRight, gdouble yBottom, gdouble thickness, gdouble angle)
 {
     double xBeg, yBeg, fact;
 

@@ -725,16 +725,12 @@ static gboolean saveChanges(gboolean onQuit, gboolean forceChooseFileName)
                     "_Cancel", GTK_RESPONSE_CANCEL,
                     "_Save", GTK_RESPONSE_ACCEPT, NULL));
         gtk_file_chooser_set_do_overwrite_confirmation(fileChooser, TRUE);
-        if( curFileName != NULL ) {
-            const char *slash = strrchr(curFileName, '/');
-            if( slash != NULL ) {
-                char *dirname = g_strdup(curFileName);
-                dirname[slash - curFileName] = '\0';
-                gtk_file_chooser_set_current_folder(fileChooser, dirname);
-                g_free(dirname);
-            }
-        }
+        if( curFileName != NULL )
+            gtk_file_chooser_set_filename(fileChooser, curFileName);
+        else
+            gtk_file_chooser_set_current_name(fileChooser, "unnamed.wlq");
         filt = gtk_file_filter_new();
+        gtk_file_filter_add_pattern(filt, "*.wlq");
         gtk_file_filter_add_mime_type(filt, "image/*");
         gtk_file_chooser_set_filter(fileChooser, filt);
         if( gtk_dialog_run(GTK_DIALOG(fileChooser)) == GTK_RESPONSE_ACCEPT ) {
@@ -759,7 +755,7 @@ static gboolean saveChanges(gboolean onQuit, gboolean forceChooseFileName)
  * Depend on user choice, the file opening may be canceled or changes on
  * current image might be discarded.
  */
-void openFile(const char *fname, gdouble imgWidth, gdouble imgHeight)
+static void openFile(const char *fname, gdouble imgWidth, gdouble imgHeight)
 {
     DrawImage *newDrawImg = NULL;
     GtkWindow *mainWindow;
@@ -805,7 +801,7 @@ static void on_menu_new(GSimpleAction *action, GVariant *parameter,
 static void on_menu_open(GSimpleAction *action, GVariant *parameter,
         gpointer window)
 {
-    GtkWidget *fileChooser;
+    GtkFileChooser *fileChooser;
     GtkWindow *mainWindow;
     GtkFileFilter *filt;
     gint res;
@@ -814,29 +810,26 @@ static void on_menu_open(GSimpleAction *action, GVariant *parameter,
     if( ! saveChanges(TRUE, FALSE) )
         return;
     mainWindow = GTK_WINDOW(gtk_builder_get_object(builder, "mainWindow"));
-    fileChooser = gtk_file_chooser_dialog_new ("open file - wilqpaint",
-                             mainWindow, GTK_FILE_CHOOSER_ACTION_OPEN,
-                             "_Cancel", GTK_RESPONSE_CANCEL,
-                             "_Open", GTK_RESPONSE_ACCEPT, NULL);
+    fileChooser = GTK_FILE_CHOOSER(gtk_file_chooser_dialog_new (
+                "open file - wilqpaint",
+                mainWindow, GTK_FILE_CHOOSER_ACTION_OPEN,
+                "_Cancel", GTK_RESPONSE_CANCEL,
+                "_Open", GTK_RESPONSE_ACCEPT, NULL));
     if( curFileName != NULL ) {
-        const char *slash = strrchr(curFileName, '/');
-        if( slash != NULL ) {
-            char *dirname = g_strdup(curFileName);
-            dirname[slash - curFileName] = '\0';
-            gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(fileChooser),
-                dirname);
-            g_free(dirname);
-        }
+        char *dirname = g_path_get_dirname(curFileName);
+        gtk_file_chooser_set_current_folder(fileChooser, dirname);
+        g_free(dirname);
     }
     filt = gtk_file_filter_new();
+    gtk_file_filter_add_pattern(filt, "*.wlq");
     gtk_file_filter_add_mime_type(filt, "image/*");
-    gtk_file_chooser_set_filter(GTK_FILE_CHOOSER(fileChooser), filt);
+    gtk_file_chooser_set_filter(fileChooser, filt);
     res = gtk_dialog_run(GTK_DIALOG(fileChooser));
     if( res == GTK_RESPONSE_ACCEPT ) {
-        fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(fileChooser));
+        fname = gtk_file_chooser_get_filename(fileChooser);
         openFile(fname, 0, 0);
     }
-    gtk_widget_destroy(fileChooser);
+    gtk_widget_destroy(GTK_WIDGET(fileChooser));
 }
 
 static void on_menu_saveas(GSimpleAction *action, GVariant *parameter,
