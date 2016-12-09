@@ -201,13 +201,13 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
     ShapeParams shapeParams;
     Shape *shape = NULL;
-    int width, height, i;
+    int i;
     enum ShapeSide side = SS_RIGHT | SS_BOTTOM | SS_CREATE;
-    gdouble thickness, round;
+    gdouble thickness, round, winWidth, winHeight, shapeWidth, shapeHeight;
 
-    width = gtk_widget_get_allocated_width(widget);
-    height = gtk_widget_get_allocated_height(widget);
-    if( width <= 20 || height <= 20 )
+    winWidth = gtk_widget_get_allocated_width(widget);
+    winHeight = gtk_widget_get_allocated_height(widget);
+    if( winWidth <= 20 || winHeight <= 20 )
         return;
     getShapeParamsFromControls(&shapeParams);
     g_free((void*)shapeParams.text);
@@ -215,48 +215,79 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     thickness = shapeParams.thickness;
     round = shapeParams.round;
     if( isToggleButtonActive("shapeFreeForm") ) {
-        shape = shape_new(ST_FREEFORM, 0, height / 6, &shapeParams);
-        for(i = 0; i < width; i += 4) {
-            shape_moveTo(shape, i, 0.20 * height
-                    * (3.0 - cos(53.0 * G_PI / width)
-                        - 4.0 * fabs(i - 0.5 * width) / width
-                        - cos(5.3 * (i - 10) / width * G_PI)), side);
+        shape = shape_new(ST_FREEFORM, 0, winHeight / 6, &shapeParams);
+        for(i = 0; i < winWidth; i += 4) {
+            shape_moveTo(shape, i, 0.20 * winHeight
+                    * (3.0 - cos(53.0 * G_PI / winWidth)
+                        - 4.0 * fabs(i - 0.5 * winWidth) / winWidth
+                        - cos(5.3 * (i - 10) / winWidth * G_PI)), side);
         }
     }else if( isToggleButtonActive("shapeLine") ) {
-        shape = shape_new(ST_LINE, 2, height/2, &shapeParams);
-        shape_moveTo(shape, width - 4, 0, side);
-    }else if( isToggleButtonActive("shapeTriangle") ) {
-        gdouble h, wtoh = 2.0 * tan(shapeParams.angle * G_PI / 360);
-        h = (height - thickness - 8) * wtoh > width - thickness - 4 ?
-            (width - thickness - 8) / wtoh : height - thickness - 4;
-        shape = shape_new(ST_TRIANGLE, width/2,
-                0.5 * (height - h), &shapeParams);
-        shape_moveTo(shape, 0, h, side);
-    }else if( isToggleButtonActive("shapeRect") ) {
-        shape = shape_new(ST_RECT,
-                8 + 0.5 * thickness + 0.5 * round * (2 - G_SQRT2),
-                8 + 0.5 * thickness + 0.5 * round * (2 - G_SQRT2),
-                &shapeParams);
-        shape_moveTo(shape,
-                width - 16 - thickness - round * (2 - G_SQRT2),
-                height - 16 - thickness - round * (2 - G_SQRT2), side);
-    }else if( isToggleButtonActive("shapeOval") ) {
-        shape = shape_new(ST_OVAL,
-                0.25 * (width - thickness - 4) * (2 - G_SQRT2)
-                + 0.5 * thickness + 2,
-                0.25 * (height - thickness - 4) * (2 - G_SQRT2)
-                + 0.5 * thickness + 2,
-                &shapeParams);
-        shape_moveTo(shape,
-                0.5 * G_SQRT2 * (width - thickness - 4),
-                0.5 * G_SQRT2 * (height - thickness - 4), side);
-    }else if( isToggleButtonActive("shapeText") ) {
-        shapeParams.text = "Ww";
-        shape = shape_new(ST_TEXT, 10, 10, &shapeParams);
-        shape_moveTo(shape, width/2 - 10, height/2 - 10, side);
+        shapeWidth = fmax(1, winWidth - 4);
+        shapeHeight = 0;
+        shape = shape_new(ST_LINE, 0.5 * (winWidth - shapeWidth),
+                0.5 * (winHeight - shapeHeight), &shapeParams);
+        shape_moveTo(shape, shapeWidth, shapeHeight, side);
     }else if( isToggleButtonActive("shapeArrow") ) {
-        shape = shape_new(ST_ARROW, 2, height/2, &shapeParams);
-        shape_moveTo(shape, width - 4, 0, side);
+        shapeWidth = fmax(1, winWidth - 4);
+        shapeHeight = 0;
+        shape = shape_new(ST_ARROW, 0.5 * (winWidth - shapeWidth),
+                0.5 * (winHeight - shapeHeight), &shapeParams);
+        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+    }else if( isToggleButtonActive("shapeTriangle") ) {
+        gdouble htop, hbottom, angle = shapeParams.angle * G_PI / 360;
+        shapeWidth = 0;
+        if( round == 0 ) {
+            /* it looks that cairo_stroke cutts vertex of triangle when
+             * angle is less than 12 degrees */
+            if( shapeParams.angle >= 12 )
+                htop = 0.5 * thickness / sin(angle);
+            else
+                htop = 0.5 * thickness;
+            hbottom = 0.5 * thickness;
+            gdouble hh = winHeight - htop - hbottom - 8;
+            gdouble hw = 0.5 * (winWidth - 8) / tan(angle);
+            /* 12 degrees boundary of opposite angle */
+            if( shapeParams.angle <= 180 - 2 * 12 ) {
+                hw -= 0.5 * thickness * (1.0 + 1.0 / sin(angle));
+            }else{
+                hw -= 0.5 * thickness / tan(angle);
+            }
+            shapeHeight = fmax(1, fmin(hh, hw));
+        }else{
+            htop = 0.5 * thickness;
+            hbottom = 0.5 * thickness;
+            gdouble hh = winHeight - htop - hbottom - 8;
+            gdouble hw = (0.5 * (winWidth - 8 - thickness) - round)/tan(angle)
+                + 2 * round;
+            shapeHeight = fmax(1, fmin(hh, hw));
+        }
+        shape = shape_new(ST_TRIANGLE, 0.5 * (winWidth - shapeWidth),
+                0.5 * (winHeight - shapeHeight + htop - hbottom),
+                &shapeParams);
+        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+    }else if( isToggleButtonActive("shapeRect") ) {
+        shapeWidth = winWidth - 16 - thickness;
+        shapeHeight = winHeight - 16 - thickness;
+        round = fmin(round, 0.5 * fmin(shapeWidth, shapeHeight));
+        shapeWidth = fmax(1, shapeWidth - round * (2 - G_SQRT2));
+        shapeHeight = fmax(1, shapeHeight - round * (2 - G_SQRT2));
+        shape = shape_new(ST_RECT, 0.5 * (winWidth - shapeWidth),
+                0.5 * (winHeight - shapeHeight), &shapeParams);
+        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+    }else if( isToggleButtonActive("shapeOval") ) {
+        shapeWidth = fmax(1, 0.5 * G_SQRT2 * (winWidth - thickness - 8));
+        shapeHeight = fmax(1, 0.5 * G_SQRT2 * (winHeight - thickness - 8));
+        shape = shape_new(ST_OVAL, 0.5 * (winWidth - shapeWidth),
+                0.5 * (winHeight - shapeHeight), &shapeParams);
+        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+    }else if( isToggleButtonActive("shapeText") ) {
+        shapeWidth = 0;
+        shapeHeight = 0;
+        shapeParams.text = "Ww";
+        shape = shape_new(ST_TEXT, 0.5 * (winWidth - shapeWidth),
+                0.5 * (winHeight - shapeHeight), &shapeParams);
+        shape_moveTo(shape, shapeWidth, shapeHeight, side);
     }
     if( shape != NULL ) {
         shape_draw(shape, cr, FALSE, FALSE);

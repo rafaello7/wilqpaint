@@ -197,6 +197,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="tooltip_text" translatable="yes">line color - click to change</property>
                 <property name="valign">end</property>
                 <property name="use_alpha">True</property>
                 <property name="rgba">rgb(0,0,0)</property>
@@ -213,6 +214,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="tooltip_text" translatable="yes">fill color - click to change</property>
                 <property name="valign">end</property>
                 <property name="use_alpha">True</property>
                 <property name="rgba">rgb(255,255,255)</property>
@@ -567,6 +569,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
+                        <property name="tooltip_text" translatable="yes">font color - click to change</property>
                         <property name="halign">end</property>
                         <property name="rgba">rgb(0,0,0)</property>
                         <signal name="color-set" handler="on_textColor_color_set" swapped="no"/>
