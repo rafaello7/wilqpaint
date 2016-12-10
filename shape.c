@@ -321,6 +321,34 @@ static void strokeSelection(cairo_t *cr)
     cairo_set_dash(cr, NULL, 0, 0);
 }
 
+static void drawTextOnShape(cairo_t *cr, Shape *shape, gdouble posFactor)
+{
+    PangoLayout *layout;
+    PangoFontDescription *desc;
+    int width, height;
+    gdouble xPaint, yPaint;
+
+    if( shape->params.text == NULL || shape->params.text[0] == '\0' )
+        return;
+    xPaint = shape->xLeft + posFactor * (shape->xRight - shape->xLeft);
+    yPaint = shape->yTop + posFactor * (shape->yBottom - shape->yTop);
+    layout = pango_cairo_create_layout(cr);
+    pango_layout_set_text(layout, shape->params.text, -1);
+    desc = pango_font_description_from_string(shape->params.fontName);
+    pango_layout_set_font_description (layout, desc);
+    pango_font_description_free (desc);
+    pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
+    pango_layout_get_pixel_size(layout, &width, &height);
+    cairo_clip_preserve(cr);
+    gdk_cairo_set_source_rgba(cr, &shape->params.textColor);
+    cairo_move_to(cr, xPaint - 0.5 * width, yPaint - 0.5 * height);
+    pango_cairo_show_layout(cr, layout);
+    cairo_reset_clip(cr);
+    g_object_unref(layout);
+    shape->drawnTextWidth = width;
+    shape->drawnTextHeight = height;
+}
+
 static void strokeShape(const Shape *shape, cairo_t *cr,
         gboolean isSelected)
 {
@@ -354,14 +382,15 @@ static void strokeResizePoints(const Shape *shape, cairo_t *cr,
     strokeResizePt(cr, shape->xRight, shape->yBottom);
 }
 
-static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
-        gboolean isSelected, gboolean strokeOppositeResize)
+static void strokeAndFillShape(Shape *shape, cairo_t *cr,
+        gboolean isSelected, gboolean strokeOppositeResize, gdouble posFactor)
 {
     if( shape->params.thickness == 0 || shape->params.strokeColor.alpha == 1) {
         if( shape->params.fillColor.alpha != 0 ) {
             gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
             cairo_fill_preserve(cr);
         }
+        drawTextOnShape(cr, shape, posFactor);
         if( shape->params.thickness != 0 ) {
             cairo_set_line_width(cr, shape->params.thickness);
             gdk_cairo_set_source_rgba(cr, &shape->params.strokeColor);
@@ -373,6 +402,7 @@ static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
             gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
             cairo_fill_preserve(cr);
         }
+        drawTextOnShape(cr, shape, posFactor);
         gdk_cairo_set_source_rgba(cr, &shape->params.strokeColor);
         cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
         cairo_set_line_width(cr, shape->params.thickness);
@@ -387,19 +417,13 @@ static void strokeAndFillShape(const Shape *shape, cairo_t *cr,
         cairo_new_path(cr);
 }
 
-static void drawText(cairo_t *cr, Shape *shape,
-        gdouble posFactor, gboolean drawBackground, gboolean isSelected)
+static void drawText(cairo_t *cr, Shape *shape, gboolean isSelected)
 {
     PangoLayout *layout = NULL;
     PangoFontDescription *desc;
     int width, height;
-    gdouble xPaint, yPaint;
     const char *text = shape->params.text;
 
-    if( ! drawBackground && (text == NULL || text[0] == '\0') )
-        return;
-    xPaint = shape->xLeft + posFactor * (shape->xRight - shape->xLeft);
-    yPaint = shape->yTop + posFactor * (shape->yBottom - shape->yTop);
     if( shape->params.fontName ) {
         layout = pango_cairo_create_layout(cr);
         pango_layout_set_text(layout, text ? text : "", -1);
@@ -412,12 +436,13 @@ static void drawText(cairo_t *cr, Shape *shape,
         width = 1;
         height = 8;
     }
-    if( drawBackground && shape->params.fillColor.alpha != 0.0 || isSelected ) {
-        cairo_rectangle(cr, xPaint - 0.5 * width - shape->params.thickness,
-                yPaint - 0.5 * height - shape->params.thickness,
+    if( shape->params.fillColor.alpha != 0.0 || isSelected ) {
+        cairo_rectangle(cr,
+                shape->xRight - 0.5 * width - shape->params.thickness,
+                shape->yBottom - 0.5 * height - shape->params.thickness,
                 width + 2.0 * shape->params.thickness,
                 height + 2.0 * shape->params.thickness);
-        if( drawBackground && shape->params.fillColor.alpha != 0.0 ) {
+        if( shape->params.fillColor.alpha != 0.0 ) {
             gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
             cairo_fill_preserve(cr);
         }
@@ -428,7 +453,8 @@ static void drawText(cairo_t *cr, Shape *shape,
     }
     if( layout ) {
         gdk_cairo_set_source_rgba(cr, &shape->params.textColor);
-        cairo_move_to(cr, xPaint - 0.5 * width, yPaint - 0.5 * height);
+        cairo_move_to(cr, shape->xRight - 0.5 * width,
+                shape->yBottom - 0.5 * height);
         pango_cairo_show_layout(cr, layout);
         g_object_unref(layout);
         /* pango_cairo_show_layout does not clear path */
@@ -472,10 +498,9 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isCurrent,
         }else{
             sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
-        strokeAndFillShape(shape, cr, isSelected, FALSE);
+        strokeAndFillShape(shape, cr, isSelected, FALSE, 2.0 / 3.0);
         if( isCurrent && isSelected )
             strokeResizePoints(shape, cr, FALSE);
-        drawText(cr, shape, 2.0 / 3.0, FALSE, FALSE);
         break;
     case ST_RECT:
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
@@ -484,10 +509,9 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isCurrent,
         }else{
             sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
-        strokeAndFillShape(shape, cr, isSelected, TRUE);
+        strokeAndFillShape(shape, cr, isSelected, TRUE, 0.5);
         if( isCurrent && isSelected )
             strokeResizePoints(shape, cr, TRUE);
-        drawText(cr, shape, 0.5, FALSE, FALSE);
         break;
     case ST_OVAL:
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
@@ -496,13 +520,12 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isCurrent,
         }else{
             sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
-        strokeAndFillShape(shape, cr, isSelected, TRUE);
+        strokeAndFillShape(shape, cr, isSelected, TRUE, 0.5);
         if( isCurrent && isSelected )
             strokeResizePoints(shape, cr, TRUE);
-        drawText(cr, shape, 0.5, FALSE, FALSE);
         break;
     case ST_TEXT:
-        drawText(cr, shape, 1.0, TRUE, isSelected);
+        drawText(cr, shape, isSelected);
         break;
     case ST_ARROW:
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
