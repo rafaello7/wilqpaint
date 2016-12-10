@@ -522,7 +522,7 @@
                         <property name="margin_bottom">4</property>
                         <property name="shadow_type">in</property>
                         <child>
-                          <object class="GtkTextView" id="text">
+                          <object class="GtkTextView" id="textView">
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="buffer">shapeTextBuffer</property>
@@ -536,7 +536,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkFontButton" id="font">
+                      <object class="GtkFontButton" id="fontButton">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>

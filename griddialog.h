@@ -2,17 +2,23 @@
 #define GRIDDIALOG_H
 
 
-void grid_showDialog(GtkWindow *owner, void (*onChange)(GtkWidget*));
+typedef struct GridOptions GridOptions;
 
-gdouble grid_getScale(void);
-gdouble grid_getXOffset(void);
-gdouble grid_getYOffset(void);
-gdouble grid_getSnapXValue(gdouble);
-gdouble grid_getSnapYValue(gdouble);
-gboolean grid_isShow(void);
-void grid_setIsShow(gboolean);
-gboolean grid_isSnapTo(void);
-void grid_setIsSnapTo(gboolean);
+GridOptions *grid_optsNew(void);
 
+void grid_showDialog(GridOptions*, GtkWindow *owner,
+        void (*onChange)(GtkWindow*));
+
+gdouble grid_getScale(GridOptions*);
+gdouble grid_getXOffset(GridOptions*);
+gdouble grid_getYOffset(GridOptions*);
+gdouble grid_getSnapXValue(GridOptions*, gdouble);
+gdouble grid_getSnapYValue(GridOptions*, gdouble);
+gboolean grid_isShow(GridOptions*);
+void grid_setIsShow(GridOptions*, gboolean);
+gboolean grid_isSnapTo(GridOptions*);
+void grid_setIsSnapTo(GridOptions*, gboolean);
+
+void grid_optsFree(GridOptions*);
 
 #endif /* GRIDDIALOG_H */

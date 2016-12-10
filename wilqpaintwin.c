@@ -33,6 +33,38 @@ typedef struct {
     gdouble selXref, selYref, selWidth, selHeight;
     gdouble curZoom;
     gint shapeControlsSetInProgress;
+    GridOptions *gopts;
+
+    /* controls */
+    GtkWidget       *drawing;
+    GtkStack        *shapeTools;
+    GtkSpinButton   *thickness;
+    GtkSpinButton   *angle;
+    GtkSpinButton   *round;
+    GtkColorChooser *strokeColor;
+    GtkColorChooser *fillColor;
+    GtkColorChooser *textColor;
+    GtkColorChooser *backgroundColor;
+    GtkTextView     *textView;
+    GtkFontButton   *fontButton;
+    GtkWidget       *shapePreview;
+
+    GtkToggleButton *shapeSelect;
+    GtkToggleButton *shapeImageSize;
+    GtkToggleButton *shapeText;
+    GtkToggleButton *shapeFreeForm;
+    GtkToggleButton *shapeLine;
+    GtkToggleButton *shapeArrow;
+    GtkToggleButton *shapeTriangle;
+    GtkToggleButton *shapeRect;
+    GtkToggleButton *shapeOval;
+
+    GtkSpinButton   *spinImageWidth;
+    GtkSpinButton   *spinImageHeight;
+    GtkToggleButton *marginLeft;
+    GtkToggleButton *marginRight;
+    GtkToggleButton *marginTop;
+    GtkToggleButton *marginBottom;
 } WilqpaintWindowPrivate;
 
 G_DEFINE_TYPE_WITH_PRIVATE(WilqpaintWindow, wilqpaint_window,
@@ -53,80 +85,87 @@ static void wilqpaint_window_init(WilqpaintWindow *win)
     priv->selHeight = 0;
     priv->curZoom = 1.0;
     priv->shapeControlsSetInProgress = 0;
+    priv->gopts = grid_optsNew();
 }
 
-static void wilqpaint_window_class_init(WilqpaintWindowClass *class)
+static void wilqpaint_window_dispose(GObject *object)
 {
-    gtk_widget_class_set_template_from_resource(GTK_WIDGET_CLASS(class),
-            "/org/rafaello7/wilqpaint/wilqpaint.ui");
-}
-
-struct FindChildParam {
-    const char *name;
-    GtkWidget *result;
-};
-
-static void findChildFun(GtkWidget *widget, gpointer data)
-{
-    struct FindChildParam *par = data;
-    const char *name = gtk_buildable_get_name(GTK_BUILDABLE(widget));
-
-    if( par->result != NULL )
-        return;
-    name = gtk_buildable_get_name(GTK_BUILDABLE(widget));
-    if( name != NULL && !strcmp(name, par->name) ) {
-        par->result = widget;
-        return;
-    }
-    if( GTK_IS_CONTAINER(widget) )
-        gtk_container_foreach(GTK_CONTAINER(widget), findChildFun, data);
-}
-
-static GtkWidget *getWilqpaintWidget(WilqpaintWindow *win, const char *name)
-{
-    struct FindChildParam par;
-
-    par.name = name;
-    par.result = NULL;
-    findChildFun(GTK_WIDGET(win), &par);
-    if( par.result == NULL ) {
-        printf("fatal: widget %s not found\n", name);
-        exit(1);
-    }
-    return par.result;
-}
-
-static gboolean isToggleButtonActive(WilqpaintWindow *win,
-        const char *toggleButtonName)
-{
-    return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(
-            getWilqpaintWidget(win, toggleButtonName)));
-}
-
-static gdouble getSpinButtonValue(WilqpaintWindow *win,
-        const char *spinButtonName)
-{
-    return gtk_spin_button_get_value(GTK_SPIN_BUTTON(
-            getWilqpaintWidget(win, spinButtonName)));
-}
-
-static void setSpinButtonValue(WilqpaintWindow *win,
-        const char *spinButtonName, gdouble value)
-{
+    WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
 
+    /* note: wilqpaint_window_dispose may be invoked more than once
+     * for the same object
+     */
+    win = WILQPAINT_WINDOW(object);
     priv = wilqpaint_window_get_instance_private(win);
-    ++priv->shapeControlsSetInProgress;
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(
-            getWilqpaintWidget(win, spinButtonName)), value);
-    --priv->shapeControlsSetInProgress;
+    grid_optsFree(priv->gopts);
+    priv->gopts = NULL;
+    G_OBJECT_CLASS(wilqpaint_window_parent_class)->dispose(object);
 }
 
-static void setSpinButtonRange(WilqpaintWindow *win,
-        const char *spinButtonName, gdouble min, gdouble max)
+static void onShapeColorChosen(GtkWidget*, enum ChosenColor);
+
+static void wilqpaint_window_class_init(WilqpaintWindowClass *wilqpaintClass)
 {
-    gtk_spin_button_set_range(GTK_SPIN_BUTTON(
-            getWilqpaintWidget(win, spinButtonName)), min, max);
+    GtkWidgetClass *widgetClass = GTK_WIDGET_CLASS(wilqpaintClass);
+    G_OBJECT_CLASS(wilqpaintClass)->dispose = wilqpaint_window_dispose;
+    gtk_widget_class_set_template_from_resource(widgetClass,
+            "/org/rafaello7/wilqpaint/wilqpaint.ui");
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, drawing);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeTools);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, thickness);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, angle);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, round);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, strokeColor);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, fillColor);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, textColor);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, backgroundColor);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, textView);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, fontButton);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapePreview);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeSelect);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeImageSize);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeText);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeFreeForm);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeLine);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeArrow);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeTriangle);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeRect);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, shapeOval);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, spinImageWidth);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, spinImageHeight);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, marginLeft);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, marginRight);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, marginTop);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, marginBottom);
+    setColorChooseNotifyHandler(onShapeColorChosen);
 }
 
 static void setCurFileName(WilqpaintWindow *win, const char *fname)
@@ -155,121 +194,83 @@ static void setCurFileName(WilqpaintWindow *win, const char *fname)
     gtk_window_set_title(GTK_WINDOW(win), title);
 }
 
-static void redrawDrawing(WilqpaintWindow *win)
+static void redrawDrawingArea(GtkWidget *drawing)
 {
-    GtkWidget *drawing = GTK_WIDGET(getWilqpaintWidget(win, "drawing"));
     GdkRectangle update_rect;
     update_rect.x = 0;
     update_rect.y = 0;
-    update_rect.width = gtk_widget_get_allocated_width (drawing);
-    update_rect.height = gtk_widget_get_allocated_height (drawing);
-    GdkWindow *gdkWin = gtk_widget_get_window (drawing);
+    update_rect.width = gtk_widget_get_allocated_width(drawing);
+    update_rect.height = gtk_widget_get_allocated_height(drawing);
+    GdkWindow *gdkWin = gtk_widget_get_window(drawing);
     gdk_window_invalidate_rect (gtk_widget_get_window(drawing),
             &update_rect, FALSE);
 }
 
-void adjustDrawingSize(WilqpaintWindow *win, gboolean adjustImageSizeSpins)
+void adjustDrawingSize(WilqpaintWindowPrivate *priv,
+        gboolean adjustImageSizeSpins)
 {
-    GtkWidget *drawing;
     gint imgWidth, imgHeight;
-    WilqpaintWindowPrivate *priv;
 
-    priv = wilqpaint_window_get_instance_private(win);
     priv->selWidth = priv->selHeight = 0;
-    drawing = GTK_WIDGET(getWilqpaintWidget(win, "drawing"));
     imgWidth = di_getWidth(priv->drawImage);
     imgHeight = di_getHeight(priv->drawImage);
-    gtk_widget_set_size_request(drawing, imgWidth * priv->curZoom,
+    gtk_widget_set_size_request(priv->drawing, imgWidth * priv->curZoom,
             imgHeight * priv->curZoom);
     if( adjustImageSizeSpins ) {
-        setSpinButtonValue(win, "spinImageWidth", imgWidth);
-        setSpinButtonValue(win, "spinImageHeight", imgHeight);
+        ++priv->shapeControlsSetInProgress;
+        gtk_spin_button_set_value(priv->spinImageWidth, imgWidth);
+        gtk_spin_button_set_value(priv->spinImageHeight, imgWidth);
+        --priv->shapeControlsSetInProgress;
     }
 }
 
-static void redrawShapePreview(WilqpaintWindow *win)
+static void adjustBackgroundColorControl(WilqpaintWindowPrivate *priv)
 {
-    GtkWidget *drawing = GTK_WIDGET(getWilqpaintWidget(win, "shapePreview"));
-    GdkRectangle update_rect;
-    update_rect.x = 0;
-    update_rect.y = 0;
-    update_rect.width = gtk_widget_get_allocated_width (drawing);
-    update_rect.height = gtk_widget_get_allocated_height (drawing);
-    GdkWindow *gdkWin = gtk_widget_get_window (drawing);
-    gdk_window_invalidate_rect (gtk_widget_get_window(drawing),
-            &update_rect, FALSE);
-}
-
-static void adjustBackgroundColorControl(WilqpaintWindow *win)
-{
-    GtkColorChooser *bgColorButton;
     GdkRGBA color;
-    WilqpaintWindowPrivate *priv;
 
-    priv = wilqpaint_window_get_instance_private(win);
-    bgColorButton = GTK_COLOR_CHOOSER(
-            getWilqpaintWidget(win, "backgroundColor"));
     di_getBackgroundColor(priv->drawImage, &color);
-    gtk_color_chooser_set_rgba(bgColorButton, &color);
+    gtk_color_chooser_set_rgba(priv->backgroundColor, &color);
 }
 
-static void setControlsFromShapeParams(WilqpaintWindow *win,
+static void setControlsFromShapeParams(WilqpaintWindowPrivate *priv,
         const ShapeParams *shapeParams)
 {
-    GtkColorChooser *colorBtn;
-    GtkTextView *textView;
     GtkTextBuffer *textBuffer;
-    GtkFontButton *fontButton;
-    WilqpaintWindowPrivate *priv;
 
-    priv = wilqpaint_window_get_instance_private(win);
     ++priv->shapeControlsSetInProgress;
-    colorBtn = GTK_COLOR_CHOOSER(getWilqpaintWidget(win, "strokeColor"));
-    gtk_color_chooser_set_rgba(colorBtn, &shapeParams->strokeColor);
-    colorBtn = GTK_COLOR_CHOOSER(getWilqpaintWidget(win, "fillColor"));
-    gtk_color_chooser_set_rgba(colorBtn, &shapeParams->fillColor);
-    colorBtn = GTK_COLOR_CHOOSER(getWilqpaintWidget(win, "textColor"));
-    gtk_color_chooser_set_rgba(colorBtn, &shapeParams->textColor);
-    setSpinButtonValue(win, "thickness", shapeParams->thickness);
-    setSpinButtonValue(win, "angle", shapeParams->angle);
-    setSpinButtonValue(win, "round", shapeParams->round);
-    textView = GTK_TEXT_VIEW(getWilqpaintWidget(win, "text"));
-    textBuffer = gtk_text_view_get_buffer(textView);
+    gtk_color_chooser_set_rgba(priv->strokeColor, &shapeParams->strokeColor);
+    gtk_color_chooser_set_rgba(priv->fillColor, &shapeParams->fillColor);
+    gtk_color_chooser_set_rgba(priv->textColor, &shapeParams->textColor);
+    gtk_spin_button_set_value(priv->thickness, shapeParams->thickness);
+    gtk_spin_button_set_value(priv->angle, shapeParams->angle);
+    gtk_spin_button_set_value(priv->round, shapeParams->round);
+    textBuffer = gtk_text_view_get_buffer(priv->textView);
     if( shapeParams->text ) {
         gtk_text_buffer_set_text(textBuffer, shapeParams->text, -1);
-        fontButton = GTK_FONT_BUTTON(getWilqpaintWidget(win, "font"));
-        gtk_font_button_set_font_name(fontButton, shapeParams->fontName);
+        gtk_font_button_set_font_name(priv->fontButton, shapeParams->fontName);
     }else{
         gtk_text_buffer_set_text(textBuffer, "", 0);
     }
     --priv->shapeControlsSetInProgress;
 }
 
-static void getShapeParamsFromControls(WilqpaintWindow *win,
+static void getShapeParamsFromControls(WilqpaintWindowPrivate *priv,
         ShapeParams *shapeParams)
 {
-    GtkColorChooser *colorBtn;
-    GtkTextView *textView;
     GtkTextBuffer *textBuffer;
     GtkTextIter start, end;
-    GtkFontButton *fontButton;
-   
-    colorBtn = GTK_COLOR_CHOOSER(getWilqpaintWidget(win, "strokeColor"));
-    gtk_color_chooser_get_rgba(colorBtn, &shapeParams->strokeColor);
-    colorBtn = GTK_COLOR_CHOOSER(getWilqpaintWidget(win, "fillColor"));
-    gtk_color_chooser_get_rgba(colorBtn, &shapeParams->fillColor);
-    colorBtn = GTK_COLOR_CHOOSER(getWilqpaintWidget(win, "textColor"));
-    gtk_color_chooser_get_rgba(colorBtn, &shapeParams->textColor);
-    shapeParams->thickness = getSpinButtonValue(win, "thickness");
-    shapeParams->angle = getSpinButtonValue(win, "angle");
-    shapeParams->round = getSpinButtonValue(win, "round");
-    textView = GTK_TEXT_VIEW(getWilqpaintWidget(win, "text"));
-    textBuffer = gtk_text_view_get_buffer(textView);
+
+    gtk_color_chooser_get_rgba(priv->strokeColor, &shapeParams->strokeColor);
+    gtk_color_chooser_get_rgba(priv->fillColor, &shapeParams->fillColor);
+    gtk_color_chooser_get_rgba(priv->textColor, &shapeParams->textColor);
+    shapeParams->thickness = gtk_spin_button_get_value(priv->thickness);
+    shapeParams->angle = gtk_spin_button_get_value(priv->angle);
+    shapeParams->round = gtk_spin_button_get_value(priv->round);
+    textBuffer = gtk_text_view_get_buffer(priv->textView);
     gtk_text_buffer_get_bounds (textBuffer, &start, &end);
     shapeParams->text =
         gtk_text_buffer_get_text(textBuffer, &start, &end, FALSE);
-    fontButton = GTK_FONT_BUTTON(getWilqpaintWidget(win, "font"));
-    shapeParams->fontName = gtk_font_button_get_font_name(fontButton);
+    shapeParams->fontName = gtk_font_button_get_font_name(priv->fontButton);
 }
 
 void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
@@ -281,19 +282,21 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     gdouble thickness, round, winWidth, winHeight, shapeWidth, shapeHeight;
     gboolean hasText;
     WilqpaintWindow *win;
+    WilqpaintWindowPrivate *priv;
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(widget));
+    priv = wilqpaint_window_get_instance_private(win);
     winWidth = gtk_widget_get_allocated_width(widget);
     winHeight = gtk_widget_get_allocated_height(widget);
     if( winWidth <= 20 || winHeight <= 20 )
         return;
-    getShapeParamsFromControls(win, &shapeParams);
+    getShapeParamsFromControls(priv, &shapeParams);
     hasText = shapeParams.text && shapeParams.text[0];
     g_free((void*)shapeParams.text);
     shapeParams.text = hasText ? "Ww" : NULL;
     thickness = shapeParams.thickness;
     round = shapeParams.round;
-    if( isToggleButtonActive(win, "shapeFreeForm") ) {
+    if( gtk_toggle_button_get_active(priv->shapeFreeForm) ) {
         shape = shape_new(ST_FREEFORM, 0, winHeight / 6, &shapeParams);
         for(i = 0; i < winWidth; i += 4) {
             shape_moveTo(shape, i, 0.20 * winHeight
@@ -301,19 +304,19 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
                         - 4.0 * fabs(i - 0.5 * winWidth) / winWidth
                         - cos(5.3 * (i - 10) / winWidth * G_PI)), side);
         }
-    }else if( isToggleButtonActive(win, "shapeLine") ) {
+    }else if( gtk_toggle_button_get_active(priv->shapeLine) ) {
         shapeWidth = fmax(1, winWidth - 4);
         shapeHeight = 0;
         shape = shape_new(ST_LINE, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
         shape_moveTo(shape, shapeWidth, shapeHeight, side);
-    }else if( isToggleButtonActive(win, "shapeArrow") ) {
+    }else if( gtk_toggle_button_get_active(priv->shapeArrow) ) {
         shapeWidth = fmax(1, winWidth - 4);
         shapeHeight = 0;
         shape = shape_new(ST_ARROW, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
         shape_moveTo(shape, shapeWidth, shapeHeight, side);
-    }else if( isToggleButtonActive(win, "shapeTriangle") ) {
+    }else if( gtk_toggle_button_get_active(priv->shapeTriangle) ) {
         gdouble htop, hbottom, angle = shapeParams.angle * G_PI / 360;
         shapeWidth = 0;
         if( round == 0 ) {
@@ -344,7 +347,7 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
                 0.5 * (winHeight - shapeHeight + htop - hbottom),
                 &shapeParams);
         shape_moveTo(shape, shapeWidth, shapeHeight, side);
-    }else if( isToggleButtonActive(win, "shapeRect") ) {
+    }else if( gtk_toggle_button_get_active(priv->shapeRect) ) {
         shapeWidth = winWidth - 16 - thickness;
         shapeHeight = winHeight - 16 - thickness;
         round = fmin(round, 0.5 * fmin(shapeWidth, shapeHeight));
@@ -353,13 +356,13 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shape = shape_new(ST_RECT, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
         shape_moveTo(shape, shapeWidth, shapeHeight, side);
-    }else if( isToggleButtonActive(win, "shapeOval") ) {
+    }else if( gtk_toggle_button_get_active(priv->shapeOval) ) {
         shapeWidth = fmax(1, 0.5 * G_SQRT2 * (winWidth - thickness - 8));
         shapeHeight = fmax(1, 0.5 * G_SQRT2 * (winHeight - thickness - 8));
         shape = shape_new(ST_OVAL, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
         shape_moveTo(shape, shapeWidth, shapeHeight, side);
-    }else if( isToggleButtonActive(win, "shapeText") ) {
+    }else if( gtk_toggle_button_get_active(priv->shapeText) ) {
         shapeWidth = 0;
         shapeHeight = 0;
         shapeParams.text = "Ww";
@@ -384,8 +387,8 @@ void on_thickness_value_changed(GtkSpinButton *spin, gpointer user_data)
     if( priv->shapeControlsSetInProgress == 0 ) {
         shapeParams.thickness = gtk_spin_button_get_value(spin);
         di_setSelectionParam(priv->drawImage, SP_THICKNESS, &shapeParams);
-        redrawDrawing(win);
-        redrawShapePreview(win);
+        redrawDrawingArea(priv->drawing);
+        redrawDrawingArea(priv->shapePreview);
     }
 }
 
@@ -400,8 +403,8 @@ void on_round_value_changed(GtkSpinButton *spin, gpointer user_data)
     if( priv->shapeControlsSetInProgress == 0 ) {
         shapeParams.round = gtk_spin_button_get_value(spin);
         di_setSelectionParam(priv->drawImage, SP_ROUND, &shapeParams);
-        redrawDrawing(win);
-        redrawShapePreview(win);
+        redrawDrawingArea(priv->drawing);
+        redrawDrawingArea(priv->shapePreview);
     }
 }
 
@@ -416,8 +419,8 @@ void on_angle_value_changed(GtkSpinButton *spin, gpointer user_data)
     if( priv->shapeControlsSetInProgress == 0 ) {
         shapeParams.angle = gtk_spin_button_get_value(spin);
         di_setSelectionParam(priv->drawImage, SP_ANGLE, &shapeParams);
-        redrawDrawing(win);
-        redrawShapePreview(win);
+        redrawDrawingArea(priv->drawing);
+        redrawDrawingArea(priv->shapePreview);
     }
 }
 
@@ -425,7 +428,6 @@ void on_shapeTextBuffer_changed(GtkTextBuffer *textBuffer, gpointer user_data)
 {
     ShapeParams shapeParams;
     GtkTextIter start, end;
-    GtkFontButton *fontButton;
     WilqpaintWindow *win = user_data;
     WilqpaintWindowPrivate *priv;
 
@@ -434,12 +436,11 @@ void on_shapeTextBuffer_changed(GtkTextBuffer *textBuffer, gpointer user_data)
         gtk_text_buffer_get_bounds (textBuffer, &start, &end);
         shapeParams.text =
             gtk_text_buffer_get_text(textBuffer, &start, &end, FALSE);
-        fontButton = GTK_FONT_BUTTON(getWilqpaintWidget(win, "font"));
-        shapeParams.fontName = gtk_font_button_get_font_name(fontButton);
+        shapeParams.fontName = gtk_font_button_get_font_name(priv->fontButton);
         di_setSelectionParam(priv->drawImage, SP_TEXT, &shapeParams);
         g_free((char*)shapeParams.text);
-        redrawDrawing(win);
-        redrawShapePreview(win);
+        redrawDrawingArea(priv->drawing);
+        redrawDrawingArea(priv->shapePreview);
     }
 }
 
@@ -454,7 +455,7 @@ void on_font_font_set(GtkFontButton *fontButton, gpointer user_data)
     if( priv->shapeControlsSetInProgress == 0 ) {
         shapeParams.fontName = gtk_font_button_get_font_name(fontButton);
         di_setSelectionParam(priv->drawImage, SP_FONTNAME, &shapeParams);
-        redrawDrawing(win);
+        redrawDrawingArea(priv->drawing);
     }
 }
 
@@ -470,7 +471,7 @@ void on_textColor_color_set(GtkColorButton *colorButton, gpointer user_data)
         gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(colorButton),
                 &shapeParams.textColor);
         di_setSelectionParam(priv->drawImage, SP_TEXTCOLOR, &shapeParams);
-        redrawDrawing(win);
+        redrawDrawingArea(priv->drawing);
     }
 }
 
@@ -486,8 +487,8 @@ void on_strokeColor_color_set(GtkColorButton *colorButton, gpointer user_data)
         gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(colorButton),
                 &shapeParams.textColor);
         di_setSelectionParam(priv->drawImage, SP_STROKECOLOR, &shapeParams);
-        redrawDrawing(win);
-        redrawShapePreview(win);
+        redrawDrawingArea(priv->drawing);
+        redrawDrawingArea(priv->shapePreview);
     }
 }
 
@@ -503,24 +504,22 @@ void on_fillColor_color_set(GtkColorButton *colorButton, gpointer user_data)
         gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(colorButton),
                 &shapeParams.textColor);
         di_setSelectionParam(priv->drawImage, SP_FILLCOLOR, &shapeParams);
-        redrawDrawing(win);
-        redrawShapePreview(win);
+        redrawDrawingArea(priv->drawing);
+        redrawDrawingArea(priv->shapePreview);
     }
 }
 
-void onShapeColorChosen(GtkWidget *widget, enum ChosenColor cc)
+static void onShapeColorChosen(GtkWidget *widget, enum ChosenColor cc)
 {
     ShapeParams shapeParams;
-    GtkColorChooser *colorBtn;
     GdkRGBA color;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
     priv = wilqpaint_window_get_instance_private(win);
-    colorBtn = GTK_COLOR_CHOOSER(getWilqpaintWidget(win,
-                cc == CC_STROKE ? "strokeColor" : "fillColor"));
-    gtk_color_chooser_get_rgba(colorBtn, &color);
+    gtk_color_chooser_get_rgba(cc == CC_STROKE ? priv->strokeColor
+            : priv->fillColor, &color);
     if( cc == CC_STROKE ) {
         shapeParams.strokeColor = color;
         di_setSelectionParam(priv->drawImage, SP_STROKECOLOR, &shapeParams);
@@ -528,8 +527,8 @@ void onShapeColorChosen(GtkWidget *widget, enum ChosenColor cc)
         shapeParams.fillColor = color;
         di_setSelectionParam(priv->drawImage, SP_FILLCOLOR, &shapeParams);
     }
-    redrawDrawing(win);
-    redrawShapePreview(win);
+    redrawDrawingArea(priv->drawing);
+    redrawDrawingArea(priv->shapePreview);
 }
 
 static void setZoom1x(WilqpaintWindow *win)
@@ -547,14 +546,16 @@ static void setZoom1x(WilqpaintWindow *win)
     priv->curZoom = 1.0;
 }
 
-static gdouble snapXValue(gdouble val)
+static gdouble snapXValue(WilqpaintWindowPrivate *priv, gdouble val)
 {
-    return grid_isSnapTo() ? grid_getSnapXValue(val) : val;
+    return grid_isSnapTo(priv->gopts) ?
+        grid_getSnapXValue(priv->gopts, val) : val;
 }
 
-static gdouble snapYValue(gdouble val)
+static gdouble snapYValue(WilqpaintWindowPrivate *priv, gdouble val)
 {
-    return grid_isSnapTo() ? grid_getSnapYValue(val) : val;
+    return grid_isSnapTo(priv->gopts) ?
+        grid_getSnapYValue(priv->gopts, val) : val;
 }
 
 gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
@@ -568,10 +569,10 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
     priv = wilqpaint_window_get_instance_private(win);
-    evX = snapXValue(event->x / priv->curZoom);
-    evY = snapYValue(event->y / priv->curZoom);
+    evX = snapXValue(priv, event->x / priv->curZoom);
+    evY = snapYValue(priv, event->y / priv->curZoom);
     priv->selWidth = priv->selHeight = 0;
-    if( isToggleButtonActive(win, "shapeSelect") ) {
+    if( gtk_toggle_button_get_active(priv->shapeSelect) ) {
         if( event->state & GDK_SHIFT_MASK ) {
             priv->curAction = SA_SELECTAREA;
             priv->selXref = evX;
@@ -583,38 +584,38 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
                     event->state & GDK_CONTROL_MASK) )
         {
             di_getCurShapeParams(priv->drawImage, &shapeParams);
-            setControlsFromShapeParams(win, &shapeParams);
+            setControlsFromShapeParams(priv, &shapeParams);
         }
-    }else if( isToggleButtonActive(win, "shapeImageSize") ) {
+    }else if( gtk_toggle_button_get_active(priv->shapeImageSize) ) {
         priv->moveXref = evX - di_getXRef(priv->drawImage);
         priv->moveYref = evY - di_getYRef(priv->drawImage);
         priv->curAction = SA_MOVEIMAGE;
     }else{
-        if( isToggleButtonActive(win, "shapeFreeForm") )
+        if( gtk_toggle_button_get_active(priv->shapeFreeForm) )
             shapeType = ST_FREEFORM;
-        else if( isToggleButtonActive(win, "shapeLine") )
+        else if( gtk_toggle_button_get_active(priv->shapeLine) )
             shapeType = ST_LINE;
-        else if( isToggleButtonActive(win, "shapeTriangle") )
+        else if( gtk_toggle_button_get_active(priv->shapeTriangle) )
             shapeType = ST_TRIANGLE;
-        else if( isToggleButtonActive(win, "shapeRect") )
+        else if( gtk_toggle_button_get_active(priv->shapeRect) )
             shapeType = ST_RECT;
-        else if( isToggleButtonActive(win, "shapeOval") )
+        else if( gtk_toggle_button_get_active(priv->shapeOval) )
             shapeType = ST_OVAL;
-        else if( isToggleButtonActive(win, "shapeText") )
+        else if( gtk_toggle_button_get_active(priv->shapeText) )
             shapeType = ST_TEXT;
         else
             shapeType = ST_ARROW;
-        getShapeParamsFromControls(win, &shapeParams);
+        getShapeParamsFromControls(priv, &shapeParams);
         di_addShape(priv->drawImage, shapeType, evX, evY, &shapeParams);
         g_free((void*)shapeParams.text);
         priv->curAction = SA_LAYOUT;
     }
-    redrawDrawing(win);
+    redrawDrawingArea(priv->drawing);
     gtk_widget_grab_focus(widget);
     return TRUE;
 }
 
-gboolean on_drawing_motion (GtkWidget *widget, GdkEventMotion *event,
+gboolean on_drawing_motion(GtkWidget *widget, GdkEventMotion *event,
                gpointer user_data)
 {
     WilqpaintWindow *win;
@@ -623,8 +624,8 @@ gboolean on_drawing_motion (GtkWidget *widget, GdkEventMotion *event,
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
     priv = wilqpaint_window_get_instance_private(win);
-    evX = snapXValue(event->x / priv->curZoom);
-    evY = snapYValue(event->y / priv->curZoom);
+    evX = snapXValue(priv, event->x / priv->curZoom);
+    evY = snapYValue(priv, event->y / priv->curZoom);
 
     if( event->state & GDK_BUTTON1_MASK ) {
         switch( priv->curAction ) {
@@ -641,7 +642,7 @@ gboolean on_drawing_motion (GtkWidget *widget, GdkEventMotion *event,
             di_selectionFromRect(priv->drawImage, evX, evY);
             break;
         }
-        redrawDrawing(win);
+        redrawDrawingArea(priv->drawing);
     }
     return TRUE;
 }
@@ -657,7 +658,7 @@ gboolean on_drawing_keypress(GtkWidget *widget, GdkEventKey *event,
     switch( event->keyval ) {
     case GDK_KEY_Delete:
         if( di_selectionDelete(priv->drawImage) )
-            redrawDrawing(win);
+            redrawDrawingArea(priv->drawing);
         break;
     default:
         break;
@@ -679,10 +680,10 @@ gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     cairo_scale(cr, priv->curZoom, priv->curZoom);
     di_draw(priv->drawImage, cr);
     cairo_restore(cr);
-    scale = grid_getScale() * priv->curZoom;
-    if( grid_isShow() && scale > 2 ) {
-        gridXOffset = grid_getXOffset() * priv->curZoom;
-        gridYOffset = grid_getYOffset() * priv->curZoom;
+    scale = grid_getScale(priv->gopts) * priv->curZoom;
+    if( grid_isShow(priv->gopts) && scale > 2 ) {
+        gridXOffset = grid_getXOffset(priv->gopts) * priv->curZoom;
+        gridYOffset = grid_getYOffset(priv->gopts) * priv->curZoom;
         if( scale < 32 ) {
             cairo_set_line_width(cr, 1);
             dashes[0] = 1;
@@ -731,18 +732,19 @@ void on_spinImageSize_value_changed(GtkSpinButton *spin, gpointer user_data)
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(spin)));
     priv = wilqpaint_window_get_instance_private(win);
     if( priv->shapeControlsSetInProgress == 0 ) {
-        if( isToggleButtonActive(win, "marginLeft") )
+        if( gtk_toggle_button_get_active(priv->marginLeft) )
             translateXfactor = 1.0;
-        else if( isToggleButtonActive(win, "marginRight") )
+        else if( gtk_toggle_button_get_active(priv->marginRight) )
             translateXfactor = 0.0;
-        else if( isToggleButtonActive(win, "marginTop") )
+        else if( gtk_toggle_button_get_active(priv->marginTop) )
             translateYfactor = 1.0;
-        else if( isToggleButtonActive(win, "marginBottom") )
+        else if( gtk_toggle_button_get_active(priv->marginBottom) )
             translateYfactor = 0.0;
-        di_setSize(priv->drawImage, getSpinButtonValue(win, "spinImageWidth"),
-                getSpinButtonValue(win, "spinImageHeight"),
+        di_setSize(priv->drawImage,
+                gtk_spin_button_get_value(priv->spinImageWidth),
+                gtk_spin_button_get_value(priv->spinImageHeight),
                 translateXfactor, translateYfactor);
-        adjustDrawingSize(win, FALSE);
+        adjustDrawingSize(priv, FALSE);
     }
 }
 
@@ -753,14 +755,12 @@ typedef enum {
 
 static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp)
 {
-    GtkStack *shapeTools;
     const char *pageName;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(toggle)));
     priv = wilqpaint_window_get_instance_private(win);
-    shapeTools = GTK_STACK(getWilqpaintWidget(win, "shapeTools"));
     switch( stp ) {
     case STP_IMAGESIZE:
         pageName = "toolPageImageSize";
@@ -769,14 +769,14 @@ static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp)
         pageName = "toolPageShape";
         break;
     }
-    gtk_stack_set_visible_child_name(shapeTools, pageName);
+    gtk_stack_set_visible_child_name(priv->shapeTools, pageName);
     if( di_selectionSetEmpty(priv->drawImage)
             || priv->selWidth != 0 || priv->selHeight != 0 )
     {
         priv->selWidth = priv->selHeight = 0;
-        redrawDrawing(win);
+        redrawDrawingArea(priv->drawing);
     }
-    redrawShapePreview(win);
+    redrawDrawingArea(priv->shapePreview);
 }
 
 void on_shapeSelect_toggled(GtkToggleButton *toggle, gpointer user_data)
@@ -928,8 +928,8 @@ static void openFile(WilqpaintWindow *win,
         priv->drawImage = newDrawImg;
         setCurFileName(win, fname);
         setZoom1x(win);
-        adjustDrawingSize(win, TRUE);
-        adjustBackgroundColorControl(win);
+        adjustDrawingSize(priv, TRUE);
+        adjustBackgroundColorControl(priv);
     }
 }
 
@@ -1010,10 +1010,10 @@ static void on_menu_edit_undo(GSimpleAction *action, GVariant *parameter,
     di_undo(priv->drawImage);
     if( di_getWidth(priv->drawImage) != imgWidth
             || di_getHeight(priv->drawImage) != imgHeight )
-        adjustDrawingSize(WILQPAINT_WINDOW(window), TRUE);
+        adjustDrawingSize(priv, TRUE);
     else
-        redrawDrawing(WILQPAINT_WINDOW(window));
-    adjustBackgroundColorControl(WILQPAINT_WINDOW(window));
+        redrawDrawingArea(priv->drawing);
+    adjustBackgroundColorControl(priv);
 }
 
 static void on_menu_edit_redo(GSimpleAction *action, GVariant *parameter,
@@ -1028,10 +1028,10 @@ static void on_menu_edit_redo(GSimpleAction *action, GVariant *parameter,
     di_redo(priv->drawImage);
     if( di_getWidth(priv->drawImage) != imgWidth
             || di_getHeight(priv->drawImage) != imgHeight )
-        adjustDrawingSize(WILQPAINT_WINDOW(window), TRUE);
+        adjustDrawingSize(priv, TRUE);
     else
-        redrawDrawing(WILQPAINT_WINDOW(window));
-    adjustBackgroundColorControl(WILQPAINT_WINDOW(window));
+        redrawDrawingArea(priv->drawing);
+    adjustBackgroundColorControl(priv);
 }
 
 static void on_menu_image_scale(GSimpleAction *action, GVariant *parameter,
@@ -1047,7 +1047,7 @@ static void on_menu_image_scale(GSimpleAction *action, GVariant *parameter,
                 &imgWidth, &imgHeight, TRUE) )
     {
         di_scale(priv->drawImage, imgWidth / di_getWidth(priv->drawImage));
-        adjustDrawingSize(WILQPAINT_WINDOW(window), TRUE);
+        adjustDrawingSize(priv, TRUE);
     }
 }
 
@@ -1061,7 +1061,7 @@ void on_backgroundColor_color_set(GtkColorButton *button, gpointer user_data)
     priv = wilqpaint_window_get_instance_private(win);
     gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(button), &color);
     di_setBackgroundColor(priv->drawImage, &color);
-    redrawDrawing(win);
+    redrawDrawingArea(priv->drawing);
 }
 
 static void menu_image_set_zoom(GSimpleAction *action, GVariant *state,
@@ -1072,43 +1072,54 @@ static void menu_image_set_zoom(GSimpleAction *action, GVariant *state,
     priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
     priv->curZoom = strtod(g_variant_get_string(state, NULL), NULL);
     g_simple_action_set_state(action, state);
-    adjustDrawingSize(WILQPAINT_WINDOW(window), TRUE);
+    adjustDrawingSize(priv, TRUE);
 }
 
-static void onGridDialogChange(GtkWidget *widget)
+static void onGridDialogChange(GtkWindow *window)
 {
     GAction *action;
     GVariant *state;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
 
-    win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
+    win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(window)));
     priv = wilqpaint_window_get_instance_private(win);
     action = g_action_map_lookup_action(G_ACTION_MAP(win), "grid-show");
-    g_action_change_state(action, g_variant_new_boolean(grid_isShow()));
+    g_action_change_state(action, g_variant_new_boolean(
+                grid_isShow(priv->gopts)));
     action = g_action_map_lookup_action(G_ACTION_MAP(win), "grid-snap");
-    g_action_change_state(action, g_variant_new_boolean(grid_isSnapTo()));
-    redrawDrawing(win);
+    g_action_change_state(action, g_variant_new_boolean(
+                grid_isSnapTo(priv->gopts)));
+    redrawDrawingArea(priv->drawing);
 }
 
 static void on_menu_grid_options(GSimpleAction *action, GVariant *parameter,
         gpointer window)
 {
-    grid_showDialog(GTK_WINDOW(window), onGridDialogChange);
+    WilqpaintWindowPrivate *priv;
+
+    priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
+    grid_showDialog(priv->gopts, GTK_WINDOW(window), onGridDialogChange);
 }
 
 static void menu_grid_show (GSimpleAction *action, GVariant *state,
         gpointer window)
 {
-    grid_setIsShow(g_variant_get_boolean(state));
+    WilqpaintWindowPrivate *priv;
+
+    priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
+    grid_setIsShow(priv->gopts, g_variant_get_boolean(state));
     g_simple_action_set_state (action, state);
-    redrawDrawing(WILQPAINT_WINDOW(window));
+    redrawDrawingArea(priv->drawing);
 }
 
 static void menu_grid_snap (GSimpleAction *action, GVariant *state,
-        gpointer user_data)
+        gpointer window)
 {
-    grid_setIsSnapTo(g_variant_get_boolean (state));
+    WilqpaintWindowPrivate *priv;
+
+    priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
+    grid_setIsSnapTo(priv->gopts, g_variant_get_boolean (state));
     g_simple_action_set_state(action, state);
 }
 
@@ -1140,18 +1151,17 @@ WilqpaintWindow *wilqpaint_windowNew(GtkApplication *app, const char *fileName)
         /* Help */
         { "help-about",  on_menu_about,  NULL, NULL, NULL }
     };
-    GtkWidget *drawing;
     gint imgWidth, imgHeight;
+    WilqpaintWindowPrivate *priv;
 
-    setColorChooseNotifyHandler(onShapeColorChosen);
     WilqpaintWindow *mainWin = g_object_new(WILQPAINT_WINDOW_TYPE,
             "application", app, NULL);
     g_action_map_add_action_entries(G_ACTION_MAP(mainWin),
             win_entries, G_N_ELEMENTS(win_entries), mainWin);
 
     if( fileName == NULL ) {
-        drawing = GTK_WIDGET(getWilqpaintWidget(mainWin, "drawing"));
-        g_object_get(G_OBJECT(drawing), "width-request", &imgWidth,
+        priv = wilqpaint_window_get_instance_private(mainWin);
+        g_object_get(G_OBJECT(priv->drawing), "width-request", &imgWidth,
                 "height-request", &imgHeight, NULL);
     }else{
         imgWidth = imgHeight = 0;
