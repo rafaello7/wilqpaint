@@ -6,6 +6,6 @@ enum ChosenColor {
     CC_FILL
 };
 
-void setColorChooseNotifyHandler(void (*)(enum ChosenColor));
+void setColorChooseNotifyHandler(void (*)(GtkWidget*, enum ChosenColor));
 
 #endif /* COLORCHOOSER_H */

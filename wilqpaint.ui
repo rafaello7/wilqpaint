@@ -105,9 +105,9 @@
     <property name="resource">/org/rafaello7/wilqpaint/img/triangle.png</property>
   </object>
   <object class="GtkTextBuffer" id="shapeTextBuffer">
-    <signal name="changed" handler="on_shapeTextBuffer_changed" swapped="no"/>
+    <signal name="changed" handler="on_shapeTextBuffer_changed" object="WilqpaintWindow" swapped="no"/>
   </object>
-  <object class="GtkApplicationWindow" id="mainWindow">
+  <template class="WilqpaintWindow" parent="GtkApplicationWindow">
     <property name="can_focus">False</property>
     <property name="default_width">820</property>
     <property name="default_height">560</property>
@@ -848,5 +848,5 @@
     <child type="titlebar">
       <placeholder/>
     </child>
-  </object>
+  </template>
 </interface>

@@ -6,7 +6,7 @@ static gdouble gridScale = 8, gridXOffset = 0, gridYOffset = 0;
 static gboolean showGrid = FALSE;
 static gboolean snapToGrid = FALSE;
 
-static void (*onChangeFun)(void);
+static void (*onChangeFun)(GtkWidget*);
 
 static void on_scale_change(GtkSpinButton *spin, gpointer user_data)
 {
@@ -23,7 +23,7 @@ static void on_scale_change(GtkSpinButton *spin, gpointer user_data)
             gtk_adjustment_set_value(adj, gridScale-1);
         gtk_adjustment_set_upper(adj, gridScale-1);
     }
-    onChangeFun();
+    onChangeFun(GTK_WIDGET(spin));
 }
 
 static void on_scale_offset_change(GtkSpinButton *spin, gpointer user_data)
@@ -31,22 +31,22 @@ static void on_scale_offset_change(GtkSpinButton *spin, gpointer user_data)
     gdouble *param = user_data;
 
     *param = gtk_spin_button_get_value(spin);
-    onChangeFun();
+    onChangeFun(GTK_WIDGET(spin));
 }
 
 static void on_showGrid_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     showGrid = gtk_toggle_button_get_active(toggle);
-    onChangeFun();
+    onChangeFun(GTK_WIDGET(toggle));
 }
 
 static void on_snapToGrid_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     snapToGrid = gtk_toggle_button_get_active(toggle);
-    onChangeFun();
+    onChangeFun(GTK_WIDGET(toggle));
 }
 
-void grid_showDialog(GtkWindow *owner, void (*onChange)(void))
+void grid_showDialog(GtkWindow *owner, void (*onChange)(GtkWidget*))
 {
     GtkBuilder *builder;
     GtkDialog *dialog;

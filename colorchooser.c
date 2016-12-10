@@ -18,7 +18,7 @@ static const unsigned PRE_COLORS[27] = {
 };
 
 static const double PRE_ALPHA[6] = { 0.0625, 0.125, 0.25, 0.5, 0.75, 1.0 };
-static void (*colorChooseNotifyFun)(enum ChosenColor);
+static void (*colorChooseNotifyFun)(GtkWidget*, enum ChosenColor);
 
 
 gboolean on_colorChooser_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
@@ -128,7 +128,7 @@ gboolean on_colorChooser_button_press(GtkWidget *colorChooser,
             if( !gdk_rgba_equal(&prevBtnColor, &newBtnColor) ) {
                 gtk_color_chooser_set_rgba(colorBtn, &newBtnColor);
                 if( colorChooseNotifyFun )
-                    colorChooseNotifyFun(cc);
+                    colorChooseNotifyFun(colorChooser, cc);
             }
             redrawColorChooser(colorChooser);
         }
@@ -137,7 +137,7 @@ gboolean on_colorChooser_button_press(GtkWidget *colorChooser,
 }
 
 
-void setColorChooseNotifyHandler(void (*fun)(enum ChosenColor) )
+void setColorChooseNotifyHandler(void (*fun)(GtkWidget*, enum ChosenColor) )
 {
     colorChooseNotifyFun = fun;
 }

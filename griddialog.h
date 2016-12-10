@@ -2,7 +2,7 @@
 #define GRIDDIALOG_H
 
 
-void grid_showDialog(GtkWindow *owner, void (*onChange)(void));
+void grid_showDialog(GtkWindow *owner, void (*onChange)(GtkWidget*));
 
 gdouble grid_getScale(void);
 gdouble grid_getXOffset(void);
