@@ -2,7 +2,6 @@
 #include "shape.h"
 #include "hittest.h"
 #include "shapedrawing.h"
-#include "wlqpersistence.h"
 #include <math.h>
 #include <string.h>
 
@@ -548,7 +547,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isCurrent,
     }
 }
 
-Shape *shape_readFromFile(FILE *fp)
+Shape *shape_readFromFile(WlqInFile *inFile)
 {
     ShapeType type;
     gdouble xLeft, xRight, yTop, yBottom;
@@ -556,54 +555,54 @@ Shape *shape_readFromFile(FILE *fp)
     ShapeParams params;
     Shape *shape;
 
-    type = wlq_readU32(fp);
-    xLeft = wlq_readDouble(fp);
-    xRight = wlq_readDouble(fp);
-    yTop = wlq_readDouble(fp);
-    yBottom = wlq_readDouble(fp);
-    wlq_readRGBA(fp, &params.strokeColor);
-    wlq_readRGBA(fp, &params.fillColor);
-    wlq_readRGBA(fp, &params.textColor);
-    params.thickness = wlq_readDouble(fp);
-    params.angle = wlq_readDouble(fp);
-    params.round = wlq_readDouble(fp);
-    params.text = wlq_readString(fp);
-    params.fontName = wlq_readString(fp);
+    type = wlq_readU32(inFile);
+    xLeft = wlq_readDouble(inFile);
+    xRight = wlq_readDouble(inFile);
+    yTop = wlq_readDouble(inFile);
+    yBottom = wlq_readDouble(inFile);
+    wlq_readRGBA(inFile, &params.strokeColor);
+    wlq_readRGBA(inFile, &params.fillColor);
+    wlq_readRGBA(inFile, &params.textColor);
+    params.thickness = wlq_readDouble(inFile);
+    params.angle = wlq_readDouble(inFile);
+    params.round = wlq_readDouble(inFile);
+    params.text = wlq_readString(inFile);
+    params.fontName = wlq_readString(inFile);
     shape = shape_new(type, xLeft, yTop, &params);
     shape->xRight = xRight;
     shape->yBottom = yBottom;
     g_free((void*)params.text);
     g_free((void*)params.fontName);
-    shape->ptCount = wlq_readU32(fp);
+    shape->ptCount = wlq_readU32(inFile);
     shape->path = g_malloc(shape->ptCount * sizeof(*shape->path));
     for(i = 0; i < shape->ptCount; ++i) {
-        shape->path[i].x = wlq_readDouble(fp);
-        shape->path[i].y = wlq_readDouble(fp);
+        shape->path[i].x = wlq_readDouble(inFile);
+        shape->path[i].y = wlq_readDouble(inFile);
     }
     return shape;
 }
 
-void shape_writeToFile(const Shape *shape, FILE *fp)
+void shape_writeToFile(const Shape *shape, WlqOutFile *outFile)
 {
     int i;
 
-    wlq_writeU32(fp, shape->type);
-    wlq_writeDouble(fp, shape->xLeft);
-    wlq_writeDouble(fp, shape->xRight);
-    wlq_writeDouble(fp, shape->yTop);
-    wlq_writeDouble(fp, shape->yBottom);
-    wlq_writeRGBA(fp, &shape->params.strokeColor);
-    wlq_writeRGBA(fp, &shape->params.fillColor);
-    wlq_writeRGBA(fp, &shape->params.textColor);
-    wlq_writeDouble(fp, shape->params.thickness);
-    wlq_writeDouble(fp, shape->params.angle);
-    wlq_writeDouble(fp, shape->params.round);
-    wlq_writeString(fp, shape->params.text);
-    wlq_writeString(fp, shape->params.fontName);
-    wlq_writeU32(fp, shape->ptCount);
+    wlq_writeU32(outFile, shape->type);
+    wlq_writeDouble(outFile, shape->xLeft);
+    wlq_writeDouble(outFile, shape->xRight);
+    wlq_writeDouble(outFile, shape->yTop);
+    wlq_writeDouble(outFile, shape->yBottom);
+    wlq_writeRGBA(outFile, &shape->params.strokeColor);
+    wlq_writeRGBA(outFile, &shape->params.fillColor);
+    wlq_writeRGBA(outFile, &shape->params.textColor);
+    wlq_writeDouble(outFile, shape->params.thickness);
+    wlq_writeDouble(outFile, shape->params.angle);
+    wlq_writeDouble(outFile, shape->params.round);
+    wlq_writeString(outFile, shape->params.text);
+    wlq_writeString(outFile, shape->params.fontName);
+    wlq_writeU32(outFile, shape->ptCount);
     for(i = 0; i < shape->ptCount; ++i) {
-        wlq_writeDouble(fp, shape->path[i].x);
-        wlq_writeDouble(fp, shape->path[i].y);
+        wlq_writeDouble(outFile, shape->path[i].x);
+        wlq_writeDouble(outFile, shape->path[i].y);
     }
 }
 

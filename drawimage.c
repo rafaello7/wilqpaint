@@ -135,42 +135,42 @@ static DrawImageState *getStateForModify(DrawImage *di, gint shapeIdx,
 static DrawImage *openAsWLQ(const char *fileName)
 {
     static cairo_user_data_key_t dataKey;
-    FILE *fp;
+    WlqInFile *inFile;
     char magic[4];
     int imgWidth, imgHeight, imgStride, i;
     DrawImage *di;
     DrawImageState *state;
 
-    if( (fp = fopen(fileName, "r")) == NULL )
+    if( (inFile = wlq_openIn(fileName)) == NULL )
         return NULL;
-    fread(magic, 4, 1, fp);
+    wlq_read(inFile, magic, 4);
     if( memcmp(magic, "WLQ", 4) )
         return NULL;
-    if( wlq_readU32(fp) != 0 )
+    if( wlq_readU32(inFile) != 0 )
         return NULL;
-    imgWidth = wlq_readU32(fp);
-    imgHeight = wlq_readU32(fp);
+    imgWidth = wlq_readU32(inFile);
+    imgHeight = wlq_readU32(inFile);
     di = di_new(imgWidth, imgHeight);
     state = di->states;
-    state->imgXRef = wlq_readDouble(fp);
-    state->imgYRef = wlq_readDouble(fp);
-    wlq_readRGBA(fp, &state->imgBgColor);
-    imgWidth = wlq_readU32(fp);
-    imgHeight = wlq_readU32(fp);
-    imgStride = wlq_readU32(fp);
+    state->imgXRef = wlq_readDouble(inFile);
+    state->imgYRef = wlq_readDouble(inFile);
+    wlq_readRGBA(inFile, &state->imgBgColor);
+    imgWidth = wlq_readU32(inFile);
+    imgHeight = wlq_readU32(inFile);
+    imgStride = wlq_readU32(inFile);
     if( imgWidth && imgHeight && imgStride ) {
         char *data = g_malloc(imgHeight * imgStride);
-        fread(data, imgHeight * imgStride, 1, fp);
+        wlq_read(inFile, data, imgHeight * imgStride);
         state->baseImage = cairo_image_surface_create_for_data(data,
                 CAIRO_FORMAT_ARGB32, imgWidth, imgHeight, imgStride);
         cairo_surface_set_user_data(state->baseImage, &dataKey,
                 data, g_free);
     }
-    state->shapeCount = wlq_readU32(fp);
+    state->shapeCount = wlq_readU32(inFile);
     state->shapes = g_malloc(state->shapeCount * sizeof(Shape*));
     for(i = 0; i < state->shapeCount; ++i)
-        state->shapes[i] = shape_readFromFile(fp);
-    fclose(fp);
+        state->shapes[i] = shape_readFromFile(inFile);
+    wlq_closeIn(inFile);
     return di;
 }
 
@@ -179,33 +179,33 @@ static void saveAsWLQ(DrawImage *di, const char *fileName)
     const DrawImageState *state = di->states + di->stateCur;
     int baseImgWidth = 0, baseImgHeight = 0, baseImgStride = 0, i;
     const unsigned char *data;
-    FILE *fp;
+    WlqOutFile *outFile;
 
-    if( (fp = fopen(fileName, "w")) == NULL )
+    if( (outFile = wlq_openOut(fileName)) == NULL )
         return;
-    fwrite("WLQ", 4, 1, fp);
-    wlq_writeU32(fp, 0);               /* version */
-    wlq_writeU32(fp, state->imgWidth);
-    wlq_writeU32(fp, state->imgHeight);
-    wlq_writeDouble(fp, state->imgXRef);
-    wlq_writeDouble(fp, state->imgYRef);
-    wlq_writeRGBA(fp, &state->imgBgColor);
+    wlq_write(outFile, "WLQ", 4);
+    wlq_writeU32(outFile, 0);               /* version */
+    wlq_writeU32(outFile, state->imgWidth);
+    wlq_writeU32(outFile, state->imgHeight);
+    wlq_writeDouble(outFile, state->imgXRef);
+    wlq_writeDouble(outFile, state->imgYRef);
+    wlq_writeRGBA(outFile, &state->imgBgColor);
     if( state->baseImage != NULL ) {
         baseImgWidth = cairo_image_surface_get_width(state->baseImage);
         baseImgHeight = cairo_image_surface_get_height(state->baseImage);
         baseImgStride = cairo_image_surface_get_stride(state->baseImage);
     }
-    wlq_writeU32(fp, baseImgWidth);
-    wlq_writeU32(fp, baseImgHeight);
-    wlq_writeU32(fp, baseImgStride);
+    wlq_writeU32(outFile, baseImgWidth);
+    wlq_writeU32(outFile, baseImgHeight);
+    wlq_writeU32(outFile, baseImgStride);
     if( state->baseImage != NULL ) {
         data = cairo_image_surface_get_data(state->baseImage);
-        fwrite(data, baseImgHeight * baseImgStride, 1, fp);
+        wlq_write(outFile, data, baseImgHeight * baseImgStride);
     }
-    wlq_writeU32(fp, state->shapeCount);
+    wlq_writeU32(outFile, state->shapeCount);
     for(i = 0; i < state->shapeCount; ++i)
-        shape_writeToFile(state->shapes[i], fp);
-    fclose(fp);
+        shape_writeToFile(state->shapes[i], outFile);
+    wlq_closeOut(outFile);
 }
 
 DrawImage *di_open(const char *fileName)

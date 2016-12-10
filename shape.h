@@ -1,6 +1,7 @@
 #ifndef SHAPE_H
 #define SHAPE_H
 
+#include "wlqpersistence.h"
 
 typedef enum {
     ST_FREEFORM,
@@ -76,7 +77,7 @@ enum ShapeSide shape_hitTest(const Shape*, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd);
 void shape_draw(Shape*, cairo_t*, gboolean isCurrent, gboolean isSelected);
 
-Shape *shape_readFromFile(FILE*);
-void shape_writeToFile(const Shape*, FILE*);
+Shape *shape_readFromFile(WlqInFile*);
+void shape_writeToFile(const Shape*, WlqOutFile*);
 
 #endif /* SHAPE_H */
