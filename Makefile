@@ -1,7 +1,7 @@
 OBJS = wlqpersistence.o hittest.o shapedrawing.o shape.o \
-	   drawimage.o colorchooser.o wilqpaint.o sizedialog.o \
-	   griddialog.o quitdialog.o aboutdialog.o wilqpaintwin.o \
-	   resources.o
+	   drawimage.o colorchooser.o \
+	   sizedialog.o griddialog.o quitdialog.o aboutdialog.o \
+	   wilqpaintwin.o wilqpaintapp.o wilqpaint.o resources.o
 
 UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui aboutdialog.ui \
 	  menubar.ui

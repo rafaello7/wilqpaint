@@ -14,8 +14,7 @@ struct WilqpaintWindow {
     GtkApplicationWindow parent;
 };
 
-struct WilqpaintWindowClass
-{
+struct WilqpaintWindowClass {
     GtkApplicationWindowClass parent_class;
 };
 
