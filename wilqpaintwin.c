@@ -893,43 +893,48 @@ static gboolean saveChanges(WilqpaintWindow *win,
     return doSave;
 }
 
-/* If fname is NULL, creates a new image with specified size. If the size
- * is 0x0, user is asked for image size.
- *
- * If fname is not null, the file is open. The drawing size is inherited
- * from image.
- *
- * If some image is currently open, user is possibly asked for save changes.
- * Depend on user choice, the file opening may be canceled or changes on
- * current image might be discarded.
- */
-static void openFile(WilqpaintWindow *win,
+static void setCurDrawImage(WilqpaintWindow *win, const char *fileName,
+        DrawImage *newDrawImg)
+{
+    WilqpaintWindowPrivate *priv;
+
+    priv = wilqpaint_window_get_instance_private(win);
+    if( priv->drawImage != NULL )
+        di_free(priv->drawImage);
+    priv->drawImage = newDrawImg;
+    setCurFileName(win, fileName);
+    setZoom1x(win);
+    adjustDrawingSize(priv, TRUE);
+    adjustBackgroundColorControl(priv);
+}
+
+static void newFile(WilqpaintWindow *win,
         const char *fname, gdouble imgWidth, gdouble imgHeight)
 {
     DrawImage *newDrawImg = NULL;
     WilqpaintWindowPrivate *priv;
 
     priv = wilqpaint_window_get_instance_private(win);
-    if( fname == NULL ) {
-        if( imgWidth < 1.0 || imgHeight < 1.0 ) {
-            imgWidth = di_getWidth(priv->drawImage);
-            imgHeight = di_getHeight(priv->drawImage);
-            if( ! showSizeDialog(GTK_WINDOW(win), "New Image - wilqpaint",
-                        &imgWidth, &imgHeight, FALSE) )
-                return;
-        }
-        newDrawImg = di_new(imgWidth, imgHeight);
-    }else
-        newDrawImg = di_open(fname);
-    if( newDrawImg != NULL ) {
-        if( priv->drawImage != NULL )
-            di_free(priv->drawImage);
-        priv->drawImage = newDrawImg;
-        setCurFileName(win, fname);
-        setZoom1x(win);
-        adjustDrawingSize(priv, TRUE);
-        adjustBackgroundColorControl(priv);
+    if( imgWidth < 1.0 || imgHeight < 1.0 ) {
+        imgWidth = di_getWidth(priv->drawImage);
+        imgHeight = di_getHeight(priv->drawImage);
+        if( ! showSizeDialog(GTK_WINDOW(win), "New Image - wilqpaint",
+                    &imgWidth, &imgHeight, FALSE) )
+            return;
     }
+    newDrawImg = di_new(imgWidth, imgHeight);
+    setCurDrawImage(win, fname, newDrawImg);
+}
+
+static void openFile(WilqpaintWindow *win, const char *fname)
+{
+    DrawImage *newDrawImg = NULL;
+    WilqpaintWindowPrivate *priv;
+
+    priv = wilqpaint_window_get_instance_private(win);
+    newDrawImg = di_open(fname);
+    if( newDrawImg != NULL )
+        setCurDrawImage(win, fname, newDrawImg);
 }
 
 gboolean on_mainWindow_delete_event(GtkWidget *widget, GdkEvent *event,
@@ -943,7 +948,7 @@ static void on_menu_new(GSimpleAction *action, GVariant *parameter,
 {
     if( ! saveChanges(WILQPAINT_WINDOW(window), TRUE, FALSE) )
         return;
-    openFile(WILQPAINT_WINDOW(window), NULL, 0, 0);
+    newFile(WILQPAINT_WINDOW(window), NULL, 0, 0);
 }
 
 static void on_menu_open(GSimpleAction *action, GVariant *parameter,
@@ -975,7 +980,7 @@ static void on_menu_open(GSimpleAction *action, GVariant *parameter,
     res = gtk_dialog_run(GTK_DIALOG(fileChooser));
     if( res == GTK_RESPONSE_ACCEPT ) {
         fname = gtk_file_chooser_get_filename(fileChooser);
-        openFile(WILQPAINT_WINDOW(window), fname, 0, 0);
+        openFile(WILQPAINT_WINDOW(window), fname);
     }
     gtk_widget_destroy(GTK_WIDGET(fileChooser));
 }
@@ -1158,14 +1163,14 @@ WilqpaintWindow *wilqpaint_windowNew(GtkApplication *app, const char *fileName)
     g_action_map_add_action_entries(G_ACTION_MAP(mainWin),
             win_entries, G_N_ELEMENTS(win_entries), mainWin);
 
-    if( fileName == NULL ) {
-        priv = wilqpaint_window_get_instance_private(mainWin);
+    priv = wilqpaint_window_get_instance_private(mainWin);
+    if( fileName != NULL )
+        openFile(mainWin, fileName);
+    if( priv->drawImage == NULL ) {
         g_object_get(G_OBJECT(priv->drawing), "width-request", &imgWidth,
                 "height-request", &imgHeight, NULL);
-    }else{
-        imgWidth = imgHeight = 0;
+        newFile(mainWin, fileName, imgWidth, imgHeight);
     }
-    openFile(mainWin, fileName, imgWidth, imgHeight);
     gtk_application_add_window(app, GTK_WINDOW(mainWin));
     gtk_widget_show_all(GTK_WIDGET(mainWin));
     return mainWin;

@@ -136,17 +136,11 @@ static DrawImage *openAsWLQ(const char *fileName)
 {
     static cairo_user_data_key_t dataKey;
     WlqInFile *inFile;
-    char magic[4];
     int imgWidth, imgHeight, imgStride, i;
     DrawImage *di;
     DrawImageState *state;
 
     if( (inFile = wlq_openIn(fileName)) == NULL )
-        return NULL;
-    wlq_read(inFile, magic, 4);
-    if( memcmp(magic, "WLQ", 4) )
-        return NULL;
-    if( wlq_readU32(inFile) != 0 )
         return NULL;
     imgWidth = wlq_readU32(inFile);
     imgHeight = wlq_readU32(inFile);
@@ -183,8 +177,6 @@ static void saveAsWLQ(DrawImage *di, const char *fileName)
 
     if( (outFile = wlq_openOut(fileName)) == NULL )
         return;
-    wlq_write(outFile, "WLQ", 4);
-    wlq_writeU32(outFile, 0);               /* version */
     wlq_writeU32(outFile, state->imgWidth);
     wlq_writeU32(outFile, state->imgHeight);
     wlq_writeDouble(outFile, state->imgXRef);

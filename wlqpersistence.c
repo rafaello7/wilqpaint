@@ -4,6 +4,9 @@
 #include <string.h>
 
 
+static const char wlqmagic[4] = "WLQ";
+
+
 struct WlqInFile {
     GInputStream *inStrm;
 };
@@ -17,14 +20,30 @@ WlqInFile *wlq_openIn(const char *fileName)
     GFile *gf;
     GFileInputStream *inStrm;
     WlqInFile *inFile = NULL;
+    char magic[sizeof(wlqmagic)];
+    GConverter *conv;
 
     gf = g_file_new_for_path(fileName);
     inStrm = g_file_read(gf, NULL, NULL);
+    g_object_unref(gf);
     if( inStrm != NULL ) {
         inFile = g_malloc(sizeof(WlqInFile));
         inFile->inStrm = G_INPUT_STREAM(inStrm);
+        if( wlq_read(inFile, magic, sizeof(magic)) != sizeof(magic)
+                || memcmp(magic, wlqmagic, sizeof(wlqmagic))
+                || wlq_readU32(inFile) != 0 )   /* version 0 */
+        {
+            wlq_closeIn(inFile);
+            inFile = NULL;
+        }else{
+            conv = G_CONVERTER(g_zlib_decompressor_new(
+                        G_ZLIB_COMPRESSOR_FORMAT_GZIP));
+            inFile->inStrm = G_INPUT_STREAM(g_converter_input_stream_new(
+                        inFile->inStrm, conv));
+            g_object_unref(inStrm);
+            g_object_unref(conv);
+        }
     }
-    g_object_unref(gf);
     return inFile;
 }
 
@@ -33,14 +52,23 @@ WlqOutFile *wlq_openOut(const char *fileName)
     GFile *gf;
     GFileOutputStream *outStrm;
     WlqOutFile *outFile = NULL;
+    GConverter *conv;
 
     gf = g_file_new_for_path(fileName);
     outStrm = g_file_replace(gf, NULL, FALSE, G_FILE_CREATE_NONE, NULL, NULL);
+    g_object_unref(gf);
     if( outStrm != NULL ) {
         outFile = g_malloc(sizeof(WlqOutFile));
         outFile->outStrm = G_OUTPUT_STREAM(outStrm);
+        wlq_write(outFile, wlqmagic, sizeof(wlqmagic));
+        wlq_writeU32(outFile, 0);   /* version */
+        conv = G_CONVERTER(g_zlib_compressor_new(
+                    G_ZLIB_COMPRESSOR_FORMAT_GZIP, -1));
+        outFile->outStrm = g_converter_output_stream_new(
+                outFile->outStrm, conv);
+        g_object_unref(outStrm);
+        g_object_unref(conv);
     }
-    g_object_unref(gf);
     return outFile;
 }
 
