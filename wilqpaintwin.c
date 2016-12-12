@@ -827,6 +827,42 @@ void on_shapeOval_toggled(GtkToggleButton *toggle, gpointer user_data)
         setShapeToolsActivePage(toggle, STP_SHAPE);
 }
 
+static gboolean isFileFormatWritable(const char *fname)
+{
+    GSList *formats, *item;
+    const char *ext;
+    char *basename;
+    int i;
+    gboolean res = FALSE;
+
+    basename = g_path_get_basename(fname);
+    ext = strrchr(basename, '.');
+    if( ext != NULL ) {
+        ++ext;
+        if( !strcmp(ext, "wlq") ) {
+            res = TRUE;
+        }else{
+            formats = gdk_pixbuf_get_formats();
+            for(item = formats; item != NULL && !res;
+                    item = g_slist_next(item))
+            {
+                GdkPixbufFormat *fmt = item->data;
+                if( ! gdk_pixbuf_format_is_writable(fmt) )
+                    continue;
+                gchar **extensions = gdk_pixbuf_format_get_extensions(fmt);
+                for(i = 0; extensions[i] && ! res; ++i) {
+                    if( ! strcmp(ext, extensions[i]) )
+                        res = TRUE;
+                }
+                g_strfreev(extensions);
+            }
+            g_slist_free(formats);
+        }
+    }
+    g_free(basename);
+    return res;
+}
+
 /* Saves the file modifications.
  * If onQuit flag is set to TRUE, the file is saved only when modified.
  * User is also asked for save changes in this case.
@@ -858,7 +894,9 @@ static gboolean saveChanges(WilqpaintWindow *win,
             return TRUE;
         }
     }
-    if( priv->curFileName == NULL || forceChooseFileName ) {
+    if( priv->curFileName == NULL || forceChooseFileName
+            || !isFileFormatWritable(priv->curFileName) )
+    {
         char *fname = showSaveFileDialog(GTK_WINDOW(win), priv->curFileName);
         if( fname ) {
             setCurFileName(win, fname);

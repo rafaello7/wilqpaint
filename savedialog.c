@@ -110,13 +110,13 @@ gchar *showSaveFileDialog(GtkWindow *owner, const char *curFileName)
     filters = getFilters(fileType, curExt);
     gtk_file_chooser_set_do_overwrite_confirmation(chooser, TRUE);
     gtk_file_chooser_set_current_name(chooser, curName);
-    gtk_combo_box_set_active_id(GTK_COMBO_BOX(fileType), curExt);
     g_signal_connect(fileType, "changed",
             G_CALLBACK(on_fileFilter_changed), filters);
-    if( gtk_combo_box_get_active(GTK_COMBO_BOX(fileType)) < 0 )
+    /* the manual set causes also "changed" signal to emit */
+    if( ! gtk_combo_box_set_active_id(GTK_COMBO_BOX(fileType), curExt) )
         gtk_combo_box_set_active(GTK_COMBO_BOX(fileType), 0);
     gtk_window_set_transient_for(GTK_WINDOW(chooser), owner);
-    if( gtk_dialog_run(GTK_DIALOG(chooser)) == 1 )
+    if( gtk_dialog_run(GTK_DIALOG(chooser)) == GTK_RESPONSE_ACCEPT )
         result = gtk_file_chooser_get_filename(chooser);
     gtk_widget_destroy(GTK_WIDGET(chooser));
     freeFilters(filters);
