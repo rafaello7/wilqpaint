@@ -1155,9 +1155,14 @@ WilqpaintWindow *wilqpaint_windowNew(GtkApplication *app, const char *fileName)
     };
     gint imgWidth, imgHeight;
     WilqpaintWindowPrivate *priv;
+    GdkPixbuf *icon;
 
     WilqpaintWindow *mainWin = g_object_new(WILQPAINT_WINDOW_TYPE,
             "application", app, NULL);
+    icon = gdk_pixbuf_new_from_resource(
+            "/org/rafaello7/wilqpaint/img/wilqpaint.png", NULL);
+    gtk_window_set_icon(GTK_WINDOW(mainWin), icon);
+    g_object_unref(icon);
     g_action_map_add_action_entries(G_ACTION_MAP(mainWin),
             win_entries, G_N_ELEMENTS(win_entries), mainWin);
 

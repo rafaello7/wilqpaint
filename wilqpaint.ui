@@ -111,7 +111,6 @@
     <property name="can_focus">False</property>
     <property name="default_width">820</property>
     <property name="default_height">560</property>
-    <property name="icon">img/wilqpaint.png</property>
     <signal name="delete-event" handler="on_mainWindow_delete_event" swapped="no"/>
     <child>
       <object class="GtkGrid">
