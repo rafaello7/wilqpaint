@@ -3,21 +3,14 @@
 
 
 static GtkFileFilter **getFilters(GtkComboBoxText *fileType,
-        const char *curFileName)
+        const char *curExt)
 {
     GSList *formats, *item;
     int i, filterCount = 0;
-    const char *curExt = NULL, *itemId;
+    const char *itemId;
     char patt[20];
     GtkFileFilter *filt, **filters;
 
-    if( curFileName != NULL ) {
-        curExt = g_strrstr(curFileName, ".");
-        if( curExt != NULL )
-            ++curExt;
-    }
-    if( curExt == NULL )
-        curExt = "wlq";
     formats = gdk_pixbuf_get_formats();
     filters = g_malloc(sizeof(GtkFileFilter*));
     filt = gtk_file_filter_new();
@@ -57,7 +50,6 @@ static GtkFileFilter **getFilters(GtkComboBoxText *fileType,
         filters = g_realloc(filters, (filterCount+1) * sizeof(GtkFileFilter*));
         filters[filterCount++] = filt;
     }
-    gtk_combo_box_set_active_id(GTK_COMBO_BOX(fileType), curExt);
     g_slist_free(formats);
     filters = g_realloc(filters, (filterCount+1) * sizeof(GtkFileFilter*));
     filters[filterCount] = NULL;
@@ -97,29 +89,38 @@ gchar *showSaveFileDialog(GtkWindow *owner, const char *curFileName)
     GtkBuilder *builder;
     GtkFileChooser *chooser;
     GtkComboBoxText *fileType;
-    gchar *result = NULL;
+    gchar *curName, *result = NULL;
     GtkFileFilter **filters;
+    const char *curExt;
 
     builder = gtk_builder_new_from_resource(
             "/org/rafaello7/wilqpaint/savedialog.ui");
     chooser = GTK_FILE_CHOOSER(gtk_builder_get_object(builder, "saveDialog"));
     fileType = GTK_COMBO_BOX_TEXT(gtk_builder_get_object(builder, "fileType"));
     g_object_unref(builder);
-    filters = getFilters(fileType, curFileName);
-    gtk_file_chooser_set_filter(chooser, g_object_ref(
-                filters[gtk_combo_box_get_active(GTK_COMBO_BOX(fileType))]));
-    gtk_file_chooser_set_do_overwrite_confirmation(chooser, TRUE);
     if( curFileName != NULL ) {
-        gtk_file_chooser_set_filename(chooser, curFileName);
+        char *dirname = g_path_get_dirname(curFileName);
+        gtk_file_chooser_set_current_folder(chooser, dirname);
+        g_free(dirname);
+        curName = g_path_get_basename(curFileName);
     }else
-        gtk_file_chooser_set_current_name(chooser, "unnamed.wlq");
+        curName = g_strdup("unnamed.wlq");
+    if( (curExt = g_strrstr(curFileName, ".")) != NULL )
+        ++curExt;
+    filters = getFilters(fileType, curExt);
+    gtk_file_chooser_set_do_overwrite_confirmation(chooser, TRUE);
+    gtk_file_chooser_set_current_name(chooser, curName);
+    gtk_combo_box_set_active_id(GTK_COMBO_BOX(fileType), curExt);
     g_signal_connect(fileType, "changed",
             G_CALLBACK(on_fileFilter_changed), filters);
+    if( gtk_combo_box_get_active(GTK_COMBO_BOX(fileType)) < 0 )
+        gtk_combo_box_set_active(GTK_COMBO_BOX(fileType), 0);
     gtk_window_set_transient_for(GTK_WINDOW(chooser), owner);
     if( gtk_dialog_run(GTK_DIALOG(chooser)) == 1 )
         result = gtk_file_chooser_get_filename(chooser);
     gtk_widget_destroy(GTK_WIDGET(chooser));
     freeFilters(filters);
+    g_free(curName);
     return result;
 }
 
