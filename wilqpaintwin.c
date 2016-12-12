@@ -4,6 +4,7 @@
 #include "colorchooser.h"
 #include "griddialog.h"
 #include "opendialog.h"
+#include "savedialog.h"
 #include "quitdialog.h"
 #include "sizedialog.h"
 #include "aboutdialog.h"
@@ -841,11 +842,8 @@ void on_shapeOval_toggled(GtkToggleButton *toggle, gpointer user_data)
 static gboolean saveChanges(WilqpaintWindow *win,
         gboolean onQuit, gboolean forceChooseFileName)
 {
-    GtkFileChooser *fileChooser;
-    GtkFileFilter *filt;
-    const char *fname;
-    gboolean doSave = TRUE;
     WilqpaintWindowPrivate *priv;
+    gboolean doSave = TRUE;
 
     priv = wilqpaint_window_get_instance_private(win);
     if( onQuit ) {
@@ -861,26 +859,12 @@ static gboolean saveChanges(WilqpaintWindow *win,
         }
     }
     if( priv->curFileName == NULL || forceChooseFileName ) {
-        fileChooser = GTK_FILE_CHOOSER(gtk_file_chooser_dialog_new (
-                    "save file - wilqpaint", GTK_WINDOW(win),
-                    GTK_FILE_CHOOSER_ACTION_SAVE,
-                    "_Cancel", GTK_RESPONSE_CANCEL,
-                    "_Save", GTK_RESPONSE_ACCEPT, NULL));
-        gtk_file_chooser_set_do_overwrite_confirmation(fileChooser, TRUE);
-        if( priv->curFileName != NULL )
-            gtk_file_chooser_set_filename(fileChooser, priv->curFileName);
-        else
-            gtk_file_chooser_set_current_name(fileChooser, "unnamed.wlq");
-        filt = gtk_file_filter_new();
-        gtk_file_filter_add_pattern(filt, "*.wlq");
-        gtk_file_filter_add_mime_type(filt, "image/*");
-        gtk_file_chooser_set_filter(fileChooser, filt);
-        if( gtk_dialog_run(GTK_DIALOG(fileChooser)) == GTK_RESPONSE_ACCEPT ) {
-            fname = gtk_file_chooser_get_filename(fileChooser);
+        char *fname = showSaveFileDialog(GTK_WINDOW(win), priv->curFileName);
+        if( fname ) {
             setCurFileName(win, fname);
+            g_free(fname);
         }else
             doSave = FALSE;
-        gtk_widget_destroy(GTK_WIDGET(fileChooser));
     }
     if( doSave )
         di_save(priv->drawImage, priv->curFileName);

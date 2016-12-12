@@ -4,6 +4,7 @@
     <file preprocess="xml-stripblanks">sizedialog.ui</file>
     <file preprocess="xml-stripblanks">griddialog.ui</file>
     <file preprocess="xml-stripblanks">opendialog.ui</file>
+    <file preprocess="xml-stripblanks">savedialog.ui</file>
     <file preprocess="xml-stripblanks">quitdialog.ui</file>
     <file preprocess="xml-stripblanks">aboutdialog.ui</file>
     <file preprocess="xml-stripblanks">menubar.ui</file>
