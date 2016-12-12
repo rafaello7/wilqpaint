@@ -1,5 +1,5 @@
 #include <gtk/gtk.h>
-#include "sizedialog.h"
+#include "quitdialog.h"
 
 gint showQuitDialog(GtkWindow *owner)
 {

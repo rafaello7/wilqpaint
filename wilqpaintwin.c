@@ -3,6 +3,7 @@
 #include "drawimage.h"
 #include "colorchooser.h"
 #include "griddialog.h"
+#include "opendialog.h"
 #include "quitdialog.h"
 #include "sizedialog.h"
 #include "aboutdialog.h"
@@ -195,14 +196,7 @@ static void setCurFileName(WilqpaintWindow *win, const char *fname)
 
 static void redrawDrawingArea(GtkWidget *drawing)
 {
-    GdkRectangle update_rect;
-    update_rect.x = 0;
-    update_rect.y = 0;
-    update_rect.width = gtk_widget_get_allocated_width(drawing);
-    update_rect.height = gtk_widget_get_allocated_height(drawing);
-    GdkWindow *gdkWin = gtk_widget_get_window(drawing);
-    gdk_window_invalidate_rect (gtk_widget_get_window(drawing),
-            &update_rect, FALSE);
+    gdk_window_invalidate_rect(gtk_widget_get_window(drawing), NULL, FALSE);
 }
 
 void adjustDrawingSize(WilqpaintWindowPrivate *priv,
@@ -218,7 +212,7 @@ void adjustDrawingSize(WilqpaintWindowPrivate *priv,
     if( adjustImageSizeSpins ) {
         ++priv->shapeControlsSetInProgress;
         gtk_spin_button_set_value(priv->spinImageWidth, imgWidth);
-        gtk_spin_button_set_value(priv->spinImageHeight, imgWidth);
+        gtk_spin_button_set_value(priv->spinImageHeight, imgHeight);
         --priv->shapeControlsSetInProgress;
     }
 }
@@ -954,35 +948,17 @@ static void on_menu_new(GSimpleAction *action, GVariant *parameter,
 static void on_menu_open(GSimpleAction *action, GVariant *parameter,
         gpointer window)
 {
-    GtkFileChooser *fileChooser;
-    GtkFileFilter *filt;
-    gint res;
-    const char *fname;
+    char *fname;
     WilqpaintWindowPrivate *priv;
 
     priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
     if( ! saveChanges(WILQPAINT_WINDOW(window), TRUE, FALSE) )
         return;
-    fileChooser = GTK_FILE_CHOOSER(gtk_file_chooser_dialog_new (
-                "open file - wilqpaint",
-                GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_OPEN,
-                "_Cancel", GTK_RESPONSE_CANCEL,
-                "_Open", GTK_RESPONSE_ACCEPT, NULL));
-    if( priv->curFileName != NULL ) {
-        char *dirname = g_path_get_dirname(priv->curFileName);
-        gtk_file_chooser_set_current_folder(fileChooser, dirname);
-        g_free(dirname);
-    }
-    filt = gtk_file_filter_new();
-    gtk_file_filter_add_pattern(filt, "*.wlq");
-    gtk_file_filter_add_mime_type(filt, "image/*");
-    gtk_file_chooser_set_filter(fileChooser, filt);
-    res = gtk_dialog_run(GTK_DIALOG(fileChooser));
-    if( res == GTK_RESPONSE_ACCEPT ) {
-        fname = gtk_file_chooser_get_filename(fileChooser);
+    fname = showOpenFileDialog(GTK_WINDOW(window), priv->curFileName);
+    if( fname != NULL ) {
         openFile(WILQPAINT_WINDOW(window), fname);
+        g_free(fname);
     }
-    gtk_widget_destroy(GTK_WIDGET(fileChooser));
 }
 
 static void on_menu_saveas(GSimpleAction *action, GVariant *parameter,

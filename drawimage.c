@@ -511,18 +511,48 @@ void di_setSize(DrawImage *di, gint imgWidth, gint imgHeight,
 void di_draw(const DrawImage *di, cairo_t *cr)
 {
     cairo_matrix_t matrix;
-    double xBeg, yBeg, xEnd, yEnd, angleTan, round, lineLen;
+    double xBeg, yBeg;
     const DrawImageState *state = di->states + di->stateCur;
+    gint baseImgWidth, baseImgHeight;
 
     gdk_cairo_set_source_rgba(cr, &state->imgBgColor);
-    cairo_paint(cr);
+    if( state->baseImage != NULL ) {
+        baseImgWidth = cairo_image_surface_get_width(state->baseImage);
+        baseImgHeight = cairo_image_surface_get_height(state->baseImage);
+        if( state->imgXRef > 0 && state->imgYRef + baseImgHeight > 0 ) {
+            cairo_rectangle(cr, 0, 0, fmin(state->imgXRef, state->imgWidth),
+                    fmin(state->imgYRef + baseImgHeight, state->imgHeight));
+            cairo_fill(cr);
+        }
+        if( state->imgXRef < state->imgWidth && state->imgYRef > 0 ) {
+            xBeg = fmax(state->imgXRef, 0);
+            cairo_rectangle(cr, xBeg, 0, state->imgWidth - xBeg,
+                    fmin(state->imgYRef, state->imgHeight) );
+            cairo_fill(cr);
+        }
+        xBeg = fmax(state->imgXRef + baseImgWidth, 0);
+        if( xBeg < state->imgWidth && state->imgYRef < state->imgHeight ) {
+            yBeg = fmax(state->imgYRef, 0);
+            cairo_rectangle(cr, xBeg, yBeg, state->imgWidth - xBeg,
+                    state->imgHeight - yBeg);
+            cairo_fill(cr);
+        }
+        yBeg = fmax(state->imgYRef + baseImgHeight, 0);
+        if( state->imgXRef + baseImgWidth > 0 && yBeg < state->imgHeight ) {
+            cairo_rectangle(cr, 0, yBeg,
+                    fmin(state->imgXRef + baseImgWidth, state->imgWidth),
+                    state->imgHeight - yBeg);
+            cairo_fill(cr);
+        }
+        cairo_set_source_surface(cr, state->baseImage,
+            state->imgXRef, state->imgYRef);
+        cairo_paint(cr);
+    }else{
+        cairo_paint(cr);
+    }
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 ) {
         cairo_save(cr);
         cairo_translate(cr, state->imgXRef, state->imgYRef);
-    }
-    if( state->baseImage != NULL ) {
-        cairo_set_source_surface(cr, state->baseImage, 0, 0);
-        cairo_paint(cr);
     }
     for(int i = 0; i < state->shapeCount; ++i)
         shape_draw(state->shapes[i], cr, i == di->curShapeIdx,

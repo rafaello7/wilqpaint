@@ -1,10 +1,10 @@
 OBJS = wlqpersistence.o hittest.o shapedrawing.o shape.o \
-	   drawimage.o colorchooser.o \
+	   drawimage.o colorchooser.o opendialog.o \
 	   sizedialog.o griddialog.o quitdialog.o aboutdialog.o \
 	   wilqpaintwin.o wilqpaintapp.o wilqpaint.o resources.o
 
 UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui aboutdialog.ui \
-	  menubar.ui
+	  menubar.ui opendialog.ui
 
 IMG = img/area.png img/arrow.png        img/free.png      img/imagesize.png \
 	  img/line.png img/oval.png         img/rectangle.png img/select.png \
