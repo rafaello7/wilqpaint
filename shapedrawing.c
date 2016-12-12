@@ -24,21 +24,26 @@ void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y)
 void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round)
 {
-    if( angle == 0 || round == 0 ) {
+    gdouble movement = round * sin(angle * G_PI / 360);
+    gdouble deviation = round * cos(angle * G_PI / 360);
+
+    /* don't allow too dense wavy line from performance reasons */
+    if( movement < 1.0 || round - deviation < 0.1 ) {
         cairo_move_to(cr, xBeg, yBeg);
         cairo_line_to(cr, xEnd, yEnd);
     }else{
-        double xCur, yCur, angleBeg = angle * G_PI / 360, angleEnd;
+        double angleBeg = angle * G_PI / 360, angleEnd;
         double lineLen = sqrt((xEnd - xBeg) * (xEnd - xBeg)
                 + (yEnd - yBeg) * (yEnd - yBeg));
         double direction = getAngle(xBeg, yBeg, xEnd, yEnd);
-        gdouble deviation = round * cos(angle * G_PI / 360);
-        gdouble movement = round * sin(angle * G_PI / 360);
         int i, lim = lineLen / movement;
+        double movX = (xEnd - xBeg) * movement / lineLen;
+        double movY = (yEnd - yBeg) * movement / lineLen;
+        double devX = deviation * (yEnd - yBeg) / lineLen;
+        double devY = deviation * (xEnd - xBeg) / lineLen;
 
         for(i = 1; i < lim + 2; i += 2) {
-            xCur = xBeg + i * (xEnd - xBeg) * movement / lineLen;
-            yCur = yBeg + i * (yEnd - yBeg) * movement / lineLen;
+            double xCur = xBeg + i * movX, yCur = yBeg + i * movY;
             if( i < lim )
                 angleEnd = angleBeg;
             else{
@@ -49,15 +54,11 @@ void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
                     break;
             }
             if( (i & 2) == 0 ) {
-                cairo_arc(cr,
-                        xCur - deviation * (yEnd - yBeg) / lineLen,
-                        yCur + deviation * (xEnd - xBeg) / lineLen, round,
+                cairo_arc(cr, xCur - devX, yCur + devY, round,
                         direction - 0.5 * G_PI - angleBeg,
                         direction - 0.5 * G_PI + angleEnd);
             }else{
-                cairo_arc_negative(cr,
-                        xCur + deviation * (yEnd - yBeg) / lineLen,
-                        yCur - deviation * (xEnd - xBeg) / lineLen, round,
+                cairo_arc_negative(cr, xCur + devX, yCur - devY, round,
                         direction + 0.5 * G_PI + angleBeg,
                         direction + 0.5 * G_PI - angleEnd);
             }
