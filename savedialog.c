@@ -105,7 +105,7 @@ gchar *showSaveFileDialog(GtkWindow *owner, const char *curFileName)
         curName = g_path_get_basename(curFileName);
     }else
         curName = g_strdup("unnamed.wlq");
-    if( (curExt = g_strrstr(curFileName, ".")) != NULL )
+    if( (curExt = g_strrstr(curName, ".")) != NULL )
         ++curExt;
     filters = getFilters(fileType, curExt);
     gtk_file_chooser_set_do_overwrite_confirmation(chooser, TRUE);
