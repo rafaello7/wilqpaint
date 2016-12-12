@@ -4,7 +4,8 @@
 
 void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y);
 
-void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2);
+void sd_pathLine(cairo_t *cr, gdouble xleft, gdouble yTop, gdouble xRight,
+        gdouble yBottom, gdouble angle, gdouble round);
 
 void sd_pathArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
         gdouble shapeXEnd, gdouble shapeYEnd, gdouble thickness,

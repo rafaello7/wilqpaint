@@ -2,15 +2,67 @@
 #include "shapedrawing.h"
 #include <math.h>
 
+static double getAngle(gdouble x1, gdouble y1, gdouble x2, gdouble y2)
+{
+    double res;
+
+    if( y1 == y2 ) {
+        res = x2 > x1 ? 0 : G_PI;
+    }else{
+        res = G_PI / 2.0 - atan((x2 - x1)/ (y2 - y1));
+        if( y2 < y1 )
+            res += G_PI;
+    }
+    return res;
+}
+
 void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y)
 {
     cairo_arc(cr, x, y, 1, 0, 2 * G_PI);
 }
 
-void sd_pathLine(cairo_t *cr, gdouble x1, gdouble y1, gdouble x2, gdouble y2)
+void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
+        gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round)
 {
-    cairo_move_to(cr, x1, y1);
-    cairo_line_to(cr, x2, y2);
+    if( angle == 0 || round == 0 ) {
+        cairo_move_to(cr, xBeg, yBeg);
+        cairo_line_to(cr, xEnd, yEnd);
+    }else{
+        double xCur, yCur, angleBeg = angle * G_PI / 360, angleEnd;
+        double lineLen = sqrt((xEnd - xBeg) * (xEnd - xBeg)
+                + (yEnd - yBeg) * (yEnd - yBeg));
+        double direction = getAngle(xBeg, yBeg, xEnd, yEnd);
+        gdouble deviation = round * cos(angle * G_PI / 360);
+        gdouble movement = round * sin(angle * G_PI / 360);
+        int i, lim = lineLen / movement;
+
+        for(i = 1; i < lim + 2; i += 2) {
+            xCur = xBeg + i * (xEnd - xBeg) * movement / lineLen;
+            yCur = yBeg + i * (yEnd - yBeg) * movement / lineLen;
+            if( i < lim )
+                angleEnd = angleBeg;
+            else{
+                double lenSoFar = sqrt(((xCur - xBeg) * (xCur - xBeg))
+                        + ((yCur - yBeg) * (yCur - yBeg)));
+                angleEnd = fmin(angleBeg, asin((lineLen - lenSoFar) / round));
+                if( angleEnd <= -angleBeg )
+                    break;
+            }
+            if( (i & 2) == 0 ) {
+                cairo_arc(cr,
+                        xCur - deviation * (yEnd - yBeg) / lineLen,
+                        yCur + deviation * (xEnd - xBeg) / lineLen, round,
+                        direction - 0.5 * G_PI - angleBeg,
+                        direction - 0.5 * G_PI + angleEnd);
+            }else{
+                cairo_arc_negative(cr,
+                        xCur + deviation * (yEnd - yBeg) / lineLen,
+                        yCur - deviation * (xEnd - xBeg) / lineLen, round,
+                        direction + 0.5 * G_PI + angleBeg,
+                        direction + 0.5 * G_PI - angleEnd);
+            }
+        }
+    }
 }
 
 void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
@@ -62,20 +114,6 @@ void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
     cairo_close_path(cr);
 }
 
-static double getAngle(gdouble x, gdouble y)
-{
-    double res;
-
-    if( y == 0 ) {
-        res = x > 0 ? 0 : G_PI;
-    }else{
-        res = G_PI / 2.0 - atan(x/y);
-        if( y < 0 )
-            res += G_PI;
-    }
-    return res;
-}
-
 void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round)
 {
@@ -95,18 +133,20 @@ void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
     }else{
         gdouble xAdd = (xEnd - xBeg) * round / height;
         gdouble yAdd = (yEnd - yBeg) * round / height;
-        double lineAngle = getAngle(xBeg - xEnd + (yEnd - yBeg) * angleTan,
-                yBeg - yEnd - (xEnd - xBeg) * angleTan);
+        double lineAngle = getAngle(xEnd - (yEnd - yBeg) * angleTan,
+                yEnd + (xEnd - xBeg) * angleTan, xBeg, yBeg);
         cairo_arc(cr, xBeg + xAdd, yBeg + yAdd, round, lineAngle - G_PI/2,
                 lineAngle + G_PI/2 - angle * G_PI / 180);
-        lineAngle = getAngle(xEnd - xBeg + (yEnd - yBeg) * angleTan,
-                yEnd - yBeg - (xEnd - xBeg) * angleTan);
+        lineAngle = getAngle(xBeg, yBeg, xEnd + (yEnd - yBeg) * angleTan,
+                yEnd - (xEnd - xBeg) * angleTan);
         cairo_arc(cr, xEnd - xAdd + (yEnd - yBeg - 2 * yAdd) * angleTan,
                 yEnd - yAdd - (xEnd - xBeg - 2 * xAdd) * angleTan, round,
                 lineAngle - G_PI/2,
                 lineAngle + G_PI/2 - (90 - angle / 2) * G_PI / 180);
-        lineAngle = getAngle(-2.0 * (yEnd - yBeg) * angleTan,
-                2.0 * (xEnd - xBeg) * angleTan);
+        lineAngle = getAngle(xEnd + (yEnd - yBeg) * angleTan,
+                yEnd - (xEnd - xBeg) * angleTan,
+                xEnd - (yEnd - yBeg) * angleTan,
+                yEnd + (xEnd - xBeg) * angleTan);
         cairo_arc(cr, xEnd - xAdd - (yEnd - yBeg - 2 * yAdd) * angleTan,
                 yEnd - yAdd + (xEnd - xBeg - 2 * xAdd) * angleTan, round,
                 lineAngle - G_PI/2,

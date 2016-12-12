@@ -481,7 +481,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isCurrent,
     case ST_LINE:
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathLine(cr, shape->xLeft, shape->yTop, shape->xRight,
-                    shape->yBottom);
+                    shape->yBottom, shape->params.angle, shape->params.round);
         }else{
             sd_pathPoint(cr, shape->xLeft, shape->yTop);
         }
