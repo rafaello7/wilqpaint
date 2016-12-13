@@ -602,6 +602,9 @@ void di_save(DrawImage *di, const char *fileName)
 {
     const DrawImageState *state = di->states + di->stateCur;
     int nameLen = strlen(fileName);
+
+    g_hash_table_remove_all(di->selection);
+    di->curShapeIdx = STIDX_NOOP;
     if( nameLen >= 4 && !strcasecmp(fileName + nameLen - 4, ".wlq") ) {
         saveAsWLQ(di, fileName);
     }else{
@@ -617,7 +620,6 @@ void di_save(DrawImage *di, const char *fileName)
                 getFileFormatByExt(fileName), NULL, NULL);
         g_object_unref(G_OBJECT(pixbuf));
     }
-    di->curShapeIdx = STIDX_NOOP;
     di->savedStateId = state->id;
 }
 
