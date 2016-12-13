@@ -35,23 +35,21 @@ void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         cairo_move_to(cr, xBeg, yBeg);
         cairo_line_to(cr, xEnd, yEnd);
     }else{
-        double angleBound, angleBeg, angleEnd, mvIni;
+        double angleBound, angleBeg, angleEnd, mvIni, lim;
         double lineLen = sqrt((xEnd - xBeg) * (xEnd - xBeg)
                 + (yEnd - yBeg) * (yEnd - yBeg));
         double direction = getAngle(xBeg, yBeg, xEnd, yEnd);
-        int i, lim = lineLen / movement;
-        double fx = (xEnd - xBeg) / lineLen;
-        double fy = (yEnd - yBeg) / lineLen;
-        double movX = fx * movement;
-        double movY = fy * movement;
-        double devX = deviation * fy;
-        double devY = deviation * fx;
-        unsigned isNegFirst = lim & 1;
+        int i, isNegFirst;
+        double fx = (xEnd - xBeg) / lineLen, fy = (yEnd - yBeg) / lineLen;
+        double movX = fx * movement, movY = fy * movement;
+        double devX = deviation * fy, devY = deviation * fx;
 
-        if( isNegFirst ) {
+        isNegFirst = modf(lineLen / movement, &lim) <= 0.5 && lim != 0.0;
+        if( fmod(lim, 2.0) == 1 ) {
             angleBound = fmin(0,
                     asin(0.5 * (lineLen - lim * movement)/round) - angle);
             ++lim;
+            isNegFirst = 1;
         }else{
             angleBound = fmin(angle,
                     asin(0.5 * (lineLen - lim * movement)/round));
