@@ -136,7 +136,7 @@ static DrawImage *openAsWLQ(const char *fileName)
 {
     static cairo_user_data_key_t dataKey;
     WlqInFile *inFile;
-    int imgWidth, imgHeight, imgStride, i;
+    int imgWidth, imgHeight, imgStride, imgFormat, i;
     DrawImage *di;
     DrawImageState *state;
 
@@ -152,11 +152,12 @@ static DrawImage *openAsWLQ(const char *fileName)
     imgWidth = wlq_readU32(inFile);
     imgHeight = wlq_readU32(inFile);
     imgStride = wlq_readU32(inFile);
+    imgFormat = wlq_readU32(inFile);
     if( imgWidth && imgHeight && imgStride ) {
         char *data = g_malloc(imgHeight * imgStride);
         wlq_read(inFile, data, imgHeight * imgStride);
         state->baseImage = cairo_image_surface_create_for_data(data,
-                CAIRO_FORMAT_ARGB32, imgWidth, imgHeight, imgStride);
+                imgFormat, imgWidth, imgHeight, imgStride);
         cairo_surface_set_user_data(state->baseImage, &dataKey,
                 data, g_free);
     }
@@ -172,6 +173,7 @@ static void saveAsWLQ(DrawImage *di, const char *fileName)
 {
     const DrawImageState *state = di->states + di->stateCur;
     int baseImgWidth = 0, baseImgHeight = 0, baseImgStride = 0, i;
+    int baseImgFormat = 0;
     const unsigned char *data;
     WlqOutFile *outFile;
 
@@ -186,11 +188,14 @@ static void saveAsWLQ(DrawImage *di, const char *fileName)
         baseImgWidth = cairo_image_surface_get_width(state->baseImage);
         baseImgHeight = cairo_image_surface_get_height(state->baseImage);
         baseImgStride = cairo_image_surface_get_stride(state->baseImage);
+        baseImgFormat = cairo_image_surface_get_format(state->baseImage);
     }
     wlq_writeU32(outFile, baseImgWidth);
     wlq_writeU32(outFile, baseImgHeight);
     wlq_writeU32(outFile, baseImgStride);
+    wlq_writeU32(outFile, baseImgFormat);
     if( state->baseImage != NULL ) {
+        cairo_surface_flush(state->baseImage);
         data = cairo_image_surface_get_data(state->baseImage);
         wlq_write(outFile, data, baseImgHeight * baseImgStride);
     }
