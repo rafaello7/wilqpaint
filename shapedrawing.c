@@ -26,12 +26,12 @@ void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
 {
     gdouble movement, deviation;
 
-    angle *= G_PI / 180;
+    angle *= G_PI / 360;
     movement = 2.0 * round * sin(angle);
     deviation = 2.0 * round * cos(angle);
-    //printf("movement: %f, deviation: %f\n", movement, 2.0*round-deviation);
+    //printf("movement: %f, deviation: %f\n", movement, 2 * round - deviation);
     /* don't allow too dense wavy line from performance reasons */
-    if( movement < 0.2 || 2.0 * round - deviation < 0.2 ) {
+    if( movement < 2.0 || 2.0 * round - deviation < 0.5 ) {
         cairo_move_to(cr, xBeg, yBeg);
         cairo_line_to(cr, xEnd, yEnd);
     }else{
