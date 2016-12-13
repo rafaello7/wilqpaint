@@ -24,37 +24,52 @@ void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y)
 void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round)
 {
-    gdouble movement = round * sin(angle * G_PI / 360);
-    gdouble deviation = round * cos(angle * G_PI / 360);
+    gdouble movement, deviation;
 
+    angle *= G_PI / 180;
+    movement = 2.0 * round * sin(angle);
+    deviation = 2.0 * round * cos(angle);
+    //printf("movement: %f, deviation: %f\n", movement, 2.0*round-deviation);
     /* don't allow too dense wavy line from performance reasons */
-    if( movement < 1.0 || round - deviation < 0.1 ) {
+    if( movement < 0.2 || 2.0 * round - deviation < 0.2 ) {
         cairo_move_to(cr, xBeg, yBeg);
         cairo_line_to(cr, xEnd, yEnd);
     }else{
-        double angleBeg = angle * G_PI / 360, angleEnd;
+        double angleBound, angleBeg, angleEnd, mvIni;
         double lineLen = sqrt((xEnd - xBeg) * (xEnd - xBeg)
                 + (yEnd - yBeg) * (yEnd - yBeg));
         double direction = getAngle(xBeg, yBeg, xEnd, yEnd);
         int i, lim = lineLen / movement;
-        double movX = (xEnd - xBeg) * movement / lineLen;
-        double movY = (yEnd - yBeg) * movement / lineLen;
-        double devX = deviation * (yEnd - yBeg) / lineLen;
-        double devY = deviation * (xEnd - xBeg) / lineLen;
+        double fx = (xEnd - xBeg) / lineLen;
+        double fy = (yEnd - yBeg) / lineLen;
+        double movX = fx * movement;
+        double movY = fy * movement;
+        double devX = deviation * fy;
+        double devY = deviation * fx;
+        unsigned isNegFirst = lim & 1;
 
-        for(i = 1; i < lim + 2; i += 2) {
-            double xCur = xBeg + i * movX, yCur = yBeg + i * movY;
-            if( i < lim )
-                angleEnd = angleBeg;
-            else{
-                double lenSoFar = sqrt(((xCur - xBeg) * (xCur - xBeg))
-                        + ((yCur - yBeg) * (yCur - yBeg)));
-                angleEnd = fmin(angleBeg, asin((lineLen - lenSoFar) / round));
-                if( angleEnd <= -angleBeg )
-                    break;
-            }
-            if( (i & 2) == 0 ) {
-                cairo_arc(cr, xCur - devX, yCur + devY, round,
+        if( isNegFirst ) {
+            angleBound = fmin(0,
+                    asin(0.5 * (lineLen - lim * movement)/round) - angle);
+            ++lim;
+        }else{
+            angleBound = fmin(angle,
+                    asin(0.5 * (lineLen - lim * movement)/round));
+        }
+        xBeg -= round * fy;
+        yBeg += round * fx;
+        mvIni = 0.5 * (lineLen/movement - lim);
+        for(i = 0; i <= lim; ++i) {
+            double xCur = xBeg + (i + mvIni) * movX;
+            double yCur = yBeg + (i + mvIni) * movY;
+            angleBeg = angleEnd = angle;
+
+            if( i == 0 )
+                angleBeg = angleBound;
+            if( i == lim )
+                angleEnd = angleBound;
+            if( (i & 1) == isNegFirst ) {
+                cairo_arc(cr, xCur, yCur, round,
                         direction - 0.5 * G_PI - angleBeg,
                         direction - 0.5 * G_PI + angleEnd);
             }else{
