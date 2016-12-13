@@ -129,7 +129,7 @@ char *showOpenFileDialog(GtkWindow *owner, const char *curFileName)
     g_signal_connect(par.previewImage, "draw",
             G_CALLBACK(on_filePreview_draw), &par);
     gtk_window_set_transient_for(GTK_WINDOW(chooser), owner);
-    if( gtk_dialog_run(GTK_DIALOG(chooser)) == 1 )
+    if( gtk_dialog_run(GTK_DIALOG(chooser)) == GTK_RESPONSE_ACCEPT )
         result = gtk_file_chooser_get_filename(chooser);
     gtk_widget_destroy(GTK_WIDGET(chooser));
     if( par.di != NULL )

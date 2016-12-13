@@ -62,6 +62,7 @@
                 <property name="label" translatable="yes">Open</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="can_default">True</property>
                 <property name="receives_default">True</property>
               </object>
               <packing>
@@ -83,8 +84,8 @@
       </object>
     </child>
     <action-widgets>
-      <action-widget response="0">buttonCancel</action-widget>
-      <action-widget response="1">buttonOpen</action-widget>
+      <action-widget response="-6">buttonCancel</action-widget>
+      <action-widget response="-3">buttonOpen</action-widget>
     </action-widgets>
     <child>
       <placeholder/>
