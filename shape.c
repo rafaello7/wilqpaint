@@ -547,62 +547,92 @@ void shape_draw(Shape *shape, cairo_t *cr, gboolean isCurrent,
     }
 }
 
-Shape *shape_readFromFile(WlqInFile *inFile)
+Shape *shape_readFromFile(WlqInFile *inFile, gchar **errLoc)
 {
-    ShapeType type;
+    unsigned shapeType, thickness, angle, round, ptCount;
     gdouble xLeft, xRight, yTop, yBottom;
-    int i;
     ShapeParams params;
     Shape *shape;
 
-    type = wlq_readU32(inFile);
-    xLeft   = wlq_readCoordinate(inFile);
-    xRight  = wlq_readCoordinate(inFile);
-    yTop    = wlq_readCoordinate(inFile);
-    yBottom = wlq_readCoordinate(inFile);
-    wlq_readRGBA(inFile, &params.strokeColor);
-    wlq_readRGBA(inFile, &params.fillColor);
-    wlq_readRGBA(inFile, &params.textColor);
-    params.thickness = wlq_readU16(inFile);
-    params.angle     = wlq_readU16(inFile);
-    params.round     = wlq_readU16(inFile);
-    params.text      = wlq_readString(inFile);
-    params.fontName  = wlq_readString(inFile);
-    shape = shape_new(type, xLeft, yTop, &params);
-    shape->xRight = xRight;
-    shape->yBottom = yBottom;
+    params.text = params.fontName = NULL;
+    gboolean isOK = wlq_readU32(inFile, &shapeType, errLoc)
+            && wlq_readCoordinate(inFile, &xLeft, errLoc)
+            && wlq_readCoordinate(inFile, &xRight, errLoc)
+            && wlq_readCoordinate(inFile, &yTop, errLoc)
+            && wlq_readCoordinate(inFile, &yBottom, errLoc)
+            && wlq_readRGBA(inFile, &params.strokeColor, errLoc)
+            && wlq_readRGBA(inFile, &params.fillColor, errLoc)
+            && wlq_readRGBA(inFile, &params.textColor, errLoc)
+            && wlq_readU16(inFile, &thickness, errLoc)
+            && wlq_readU16(inFile, &angle, errLoc)
+            && wlq_readU16(inFile, &round, errLoc)
+            && (params.text = wlq_readString(inFile, errLoc)) != NULL
+            && (params.fontName = wlq_readString(inFile, errLoc)) != NULL;
+    if( isOK ) {
+        params.thickness = thickness;
+        params.angle     = angle;
+        params.round     = round;
+        shape = shape_new(shapeType, xLeft, yTop, &params);
+        shape->xRight = xRight;
+        shape->yBottom = yBottom;
+    }
     g_free((void*)params.text);
     g_free((void*)params.fontName);
-    shape->ptCount = wlq_readU32(inFile);
-    shape->path = g_malloc(shape->ptCount * sizeof(*shape->path));
-    for(i = 0; i < shape->ptCount; ++i) {
-        shape->path[i].x = wlq_readCoordinate(inFile);
-        shape->path[i].y = wlq_readCoordinate(inFile);
+    if( isOK ) {
+        isOK = wlq_readU32(inFile, &ptCount, errLoc);
+        if( isOK && ptCount ) {
+            shape->path = g_try_malloc(ptCount * sizeof(*shape->path));
+            if( shape->path != NULL ) {
+                while( shape->ptCount < ptCount ) {
+                    if( ! wlq_readCoordinate(inFile,
+                            &shape->path[shape->ptCount].x, errLoc)
+                        || ! wlq_readCoordinate(inFile,
+                                &shape->path[shape->ptCount].y, errLoc) )
+                    {
+                        isOK = FALSE;
+                        break;
+                    }
+                    ++shape->ptCount;
+                }
+            }else{
+                isOK = FALSE;
+                *errLoc = g_strdup_printf("%s: not enough memory to load "
+                        "%u shape points from file",
+                        wlq_getInFileName(inFile), ptCount);
+            }
+        }
+        if( ! isOK ) {
+            shape_unref(shape);
+            shape = NULL;
+        }
     }
     return shape;
 }
 
-void shape_writeToFile(const Shape *shape, WlqOutFile *outFile)
+gboolean shape_writeToFile(const Shape *shape, WlqOutFile *outFile,
+        gchar **errLoc)
 {
     int i;
+    gboolean isOK;
 
-    wlq_writeU32(outFile, shape->type);
-    wlq_writeCoordinate(outFile, shape->xLeft);
-    wlq_writeCoordinate(outFile, shape->xRight);
-    wlq_writeCoordinate(outFile, shape->yTop);
-    wlq_writeCoordinate(outFile, shape->yBottom);
-    wlq_writeRGBA(outFile, &shape->params.strokeColor);
-    wlq_writeRGBA(outFile, &shape->params.fillColor);
-    wlq_writeRGBA(outFile, &shape->params.textColor);
-    wlq_writeU16(outFile, shape->params.thickness);
-    wlq_writeU16(outFile, shape->params.angle);
-    wlq_writeU16(outFile, shape->params.round);
-    wlq_writeString(outFile, shape->params.text);
-    wlq_writeString(outFile, shape->params.fontName);
-    wlq_writeU32(outFile, shape->ptCount);
-    for(i = 0; i < shape->ptCount; ++i) {
-        wlq_writeCoordinate(outFile, shape->path[i].x);
-        wlq_writeCoordinate(outFile, shape->path[i].y);
+    isOK = wlq_writeU32(outFile, shape->type, errLoc)
+            && wlq_writeCoordinate(outFile, shape->xLeft, errLoc)
+            && wlq_writeCoordinate(outFile, shape->xRight, errLoc)
+            && wlq_writeCoordinate(outFile, shape->yTop, errLoc)
+            && wlq_writeCoordinate(outFile, shape->yBottom, errLoc)
+            && wlq_writeRGBA(outFile, &shape->params.strokeColor, errLoc)
+            && wlq_writeRGBA(outFile, &shape->params.fillColor, errLoc)
+            && wlq_writeRGBA(outFile, &shape->params.textColor, errLoc)
+            && wlq_writeU16(outFile, shape->params.thickness, errLoc)
+            && wlq_writeU16(outFile, shape->params.angle, errLoc)
+            && wlq_writeU16(outFile, shape->params.round, errLoc)
+            && wlq_writeString(outFile, shape->params.text, errLoc)
+            && wlq_writeString(outFile, shape->params.fontName, errLoc)
+            && wlq_writeU32(outFile, shape->ptCount, errLoc);
+    for(i = 0; i < shape->ptCount && isOK; ++i) {
+        isOK = wlq_writeCoordinate(outFile, shape->path[i].x, errLoc)
+                && wlq_writeCoordinate(outFile, shape->path[i].y, errLoc);
     }
+    return isOK;
 }
 

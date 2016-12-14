@@ -77,7 +77,7 @@ enum ShapeSide shape_hitTest(const Shape*, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd);
 void shape_draw(Shape*, cairo_t*, gboolean isCurrent, gboolean isSelected);
 
-Shape *shape_readFromFile(WlqInFile*);
-void shape_writeToFile(const Shape*, WlqOutFile*);
+Shape *shape_readFromFile(WlqInFile*, gchar **errLoc);
+gboolean shape_writeToFile(const Shape*, WlqOutFile*, gchar **errLoc);
 
 #endif /* SHAPE_H */

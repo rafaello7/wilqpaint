@@ -69,13 +69,14 @@ static void on_updatePreview(GtkFileChooser *chooser, gpointer user_data)
     gint imgWidth, imgHeight;
     gdouble scaleX = 1.0, scaleY = 1.0;
     char imageDimText[20];
+    gchar *err;
 
     if( par->di != NULL ) {
         di_free(par->di);
         par->di = NULL;
     }
     if( fname != NULL ) {
-        par->di = di_open(fname);
+        par->di = di_open(fname, &err);
         g_free(fname);
         if( par->di != NULL ) {
             imgWidth = di_getWidth(par->di);
@@ -97,6 +98,8 @@ static void on_updatePreview(GtkFileChooser *chooser, gpointer user_data)
                     GTK_WIDGET(par->previewImage));
             if( gdkWin )
                 gdk_window_invalidate_rect(gdkWin, NULL, FALSE);
+        }else{
+            g_free(err);
         }
     }
     gtk_file_chooser_set_preview_widget_active(chooser, par->di != NULL);

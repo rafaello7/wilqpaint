@@ -904,8 +904,18 @@ static gboolean saveChanges(WilqpaintWindow *win,
         }else
             doSave = FALSE;
     }
-    if( doSave )
-        di_save(priv->drawImage, priv->curFileName);
+    if( doSave ) {
+        gchar *err;
+        doSave = di_save(priv->drawImage, priv->curFileName, &err);
+        if( ! doSave ) {
+            GtkWidget *messageDialog = gtk_message_dialog_new(
+                    GTK_WINDOW(win), GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                    GTK_BUTTONS_CLOSE, "%s", err);
+            gtk_dialog_run(GTK_DIALOG(messageDialog));
+            gtk_widget_destroy(GTK_WIDGET(messageDialog));
+            g_free(err);
+        }
+    }
     return doSave;
 }
 
@@ -946,11 +956,23 @@ static void openFile(WilqpaintWindow *win, const char *fname)
 {
     DrawImage *newDrawImg = NULL;
     WilqpaintWindowPrivate *priv;
+    gchar *err;
+    gboolean isNoEntErr;
 
     priv = wilqpaint_window_get_instance_private(win);
-    newDrawImg = di_open(fname);
+    newDrawImg = di_open(fname, &err, &isNoEntErr);
     if( newDrawImg != NULL )
         setCurDrawImage(win, fname, newDrawImg);
+    else{
+        if( ! isNoEntErr ) {
+            GtkWidget *messageDialog = gtk_message_dialog_new(
+                    GTK_WINDOW(win), GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                    GTK_BUTTONS_CLOSE, "%s", err);
+            gtk_dialog_run(GTK_DIALOG(messageDialog));
+            gtk_widget_destroy(GTK_WIDGET(messageDialog));
+        }
+        g_free(err);
+    }
 }
 
 gboolean on_mainWindow_delete_event(GtkWidget *widget, GdkEvent *event,

@@ -6,32 +6,32 @@ typedef struct WlqInFile WlqInFile;
 typedef struct WlqOutFile WlqOutFile;
 
 
-WlqInFile *wlq_openIn(const char *fileName);
-WlqOutFile *wlq_openOut(const char *fileName);
+WlqInFile *wlq_openIn(const char *fileName, gchar **errLoc,
+        gboolean *isNoEntErr);
+WlqOutFile *wlq_openOut(const char *fileName, gchar **errLoc);
 
-gssize wlq_read(WlqInFile*, void *buf, gsize size);
-void wlq_write(WlqOutFile*, const void *data, gsize size);
+const char *wlq_getInFileName(const WlqInFile*);
 
-unsigned wlq_readU16(WlqInFile*);
-void wlq_writeU16(WlqOutFile*, unsigned);
+gboolean wlq_read(WlqInFile*, void *buf, gsize size, gchar **errLoc);
+gboolean wlq_write(WlqOutFile*, const void *data, gsize size, gchar **errLoc);
 
-unsigned wlq_readU32(WlqInFile*);
-void wlq_writeU32(WlqOutFile*, unsigned);
+gboolean wlq_readU16(WlqInFile*, unsigned*, gchar **errLoc);
+gboolean wlq_writeU16(WlqOutFile*, unsigned, gchar **errLoc);
 
-int wlq_readS32(WlqInFile*);
-void wlq_writeS32(WlqOutFile*, int);
+gboolean wlq_readU32(WlqInFile*, unsigned*, gchar **errLoc);
+gboolean wlq_writeU32(WlqOutFile*, unsigned, gchar **errLoc);
 
-char *wlq_readString(WlqInFile*);
-void wlq_writeString(WlqOutFile*, const char*);
+gboolean wlq_readS32(WlqInFile*, int*, gchar **errLoc);
+gboolean wlq_writeS32(WlqOutFile*, int, gchar **errLoc);
 
-gdouble wlq_readDouble(WlqInFile*);
-void wlq_writeDouble(WlqOutFile*, gdouble);
+char *wlq_readString(WlqInFile*, gchar **errLoc);
+gboolean wlq_writeString(WlqOutFile*, const char*, gchar **errLoc);
 
-gdouble wlq_readCoordinate(WlqInFile*);
-void wlq_writeCoordinate(WlqOutFile*, gdouble);
+gboolean wlq_readCoordinate(WlqInFile*, gdouble*, gchar **errLoc);
+gboolean wlq_writeCoordinate(WlqOutFile*, gdouble, gchar **errLoc);
 
-void wlq_readRGBA(WlqInFile*, GdkRGBA*);
-void wlq_writeRGBA(WlqOutFile*, const GdkRGBA*);
+gboolean wlq_readRGBA(WlqInFile*, GdkRGBA*, gchar **errLoc);
+gboolean wlq_writeRGBA(WlqOutFile*, const GdkRGBA*, gchar **errLoc);
 
 void wlq_closeIn(WlqInFile*);
 void wlq_closeOut(WlqOutFile*);
