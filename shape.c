@@ -556,18 +556,18 @@ Shape *shape_readFromFile(WlqInFile *inFile)
     Shape *shape;
 
     type = wlq_readU32(inFile);
-    xLeft = wlq_readDouble(inFile);
-    xRight = wlq_readDouble(inFile);
-    yTop = wlq_readDouble(inFile);
-    yBottom = wlq_readDouble(inFile);
+    xLeft   = wlq_readCoordinate(inFile);
+    xRight  = wlq_readCoordinate(inFile);
+    yTop    = wlq_readCoordinate(inFile);
+    yBottom = wlq_readCoordinate(inFile);
     wlq_readRGBA(inFile, &params.strokeColor);
     wlq_readRGBA(inFile, &params.fillColor);
     wlq_readRGBA(inFile, &params.textColor);
-    params.thickness = wlq_readDouble(inFile);
-    params.angle = wlq_readDouble(inFile);
-    params.round = wlq_readDouble(inFile);
-    params.text = wlq_readString(inFile);
-    params.fontName = wlq_readString(inFile);
+    params.thickness = wlq_readU16(inFile);
+    params.angle     = wlq_readU16(inFile);
+    params.round     = wlq_readU16(inFile);
+    params.text      = wlq_readString(inFile);
+    params.fontName  = wlq_readString(inFile);
     shape = shape_new(type, xLeft, yTop, &params);
     shape->xRight = xRight;
     shape->yBottom = yBottom;
@@ -576,8 +576,8 @@ Shape *shape_readFromFile(WlqInFile *inFile)
     shape->ptCount = wlq_readU32(inFile);
     shape->path = g_malloc(shape->ptCount * sizeof(*shape->path));
     for(i = 0; i < shape->ptCount; ++i) {
-        shape->path[i].x = wlq_readDouble(inFile);
-        shape->path[i].y = wlq_readDouble(inFile);
+        shape->path[i].x = wlq_readCoordinate(inFile);
+        shape->path[i].y = wlq_readCoordinate(inFile);
     }
     return shape;
 }
@@ -587,22 +587,22 @@ void shape_writeToFile(const Shape *shape, WlqOutFile *outFile)
     int i;
 
     wlq_writeU32(outFile, shape->type);
-    wlq_writeDouble(outFile, shape->xLeft);
-    wlq_writeDouble(outFile, shape->xRight);
-    wlq_writeDouble(outFile, shape->yTop);
-    wlq_writeDouble(outFile, shape->yBottom);
+    wlq_writeCoordinate(outFile, shape->xLeft);
+    wlq_writeCoordinate(outFile, shape->xRight);
+    wlq_writeCoordinate(outFile, shape->yTop);
+    wlq_writeCoordinate(outFile, shape->yBottom);
     wlq_writeRGBA(outFile, &shape->params.strokeColor);
     wlq_writeRGBA(outFile, &shape->params.fillColor);
     wlq_writeRGBA(outFile, &shape->params.textColor);
-    wlq_writeDouble(outFile, shape->params.thickness);
-    wlq_writeDouble(outFile, shape->params.angle);
-    wlq_writeDouble(outFile, shape->params.round);
+    wlq_writeU16(outFile, shape->params.thickness);
+    wlq_writeU16(outFile, shape->params.angle);
+    wlq_writeU16(outFile, shape->params.round);
     wlq_writeString(outFile, shape->params.text);
     wlq_writeString(outFile, shape->params.fontName);
     wlq_writeU32(outFile, shape->ptCount);
     for(i = 0; i < shape->ptCount; ++i) {
-        wlq_writeDouble(outFile, shape->path[i].x);
-        wlq_writeDouble(outFile, shape->path[i].y);
+        wlq_writeCoordinate(outFile, shape->path[i].x);
+        wlq_writeCoordinate(outFile, shape->path[i].y);
     }
 }
 

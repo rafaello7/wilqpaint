@@ -88,6 +88,21 @@ void wlq_write(WlqOutFile *outFile, const void *data, gsize size)
             &bytesWritten, NULL, NULL);
 }
 
+unsigned wlq_readU16(WlqInFile *inFile)
+{
+    guint16 val;
+
+    wlq_read(inFile, &val, 2);
+    return GUINT16_FROM_BE(val);
+}
+
+void wlq_writeU16(WlqOutFile *outFile, unsigned val)
+{
+    guint16 valBE = GUINT16_TO_BE(val);
+
+    wlq_write(outFile, &valBE, 2);
+}
+
 unsigned wlq_readU32(WlqInFile *inFile)
 {
     guint32 val;
@@ -99,6 +114,21 @@ unsigned wlq_readU32(WlqInFile *inFile)
 void wlq_writeU32(WlqOutFile *outFile, unsigned val)
 {
     guint32 valBE = GUINT32_TO_BE(val);
+
+    wlq_write(outFile, &valBE, 4);
+}
+
+int wlq_readS32(WlqInFile *inFile)
+{
+    gint32 val;
+
+    wlq_read(inFile, &val, 4);
+    return GINT32_FROM_BE(val);
+}
+
+void wlq_writeS32(WlqOutFile *outFile, int val)
+{
+    gint32 valBE = GINT32_TO_BE(val);
 
     wlq_write(outFile, &valBE, 4);
 }
@@ -155,20 +185,31 @@ void wlq_writeDouble(WlqOutFile *outFile, gdouble val)
     wlq_write(outFile, &expBE, 2);
 }
 
+gdouble wlq_readCoordinate(WlqInFile *inFile)
+{
+    return ldexp(wlq_readS32(inFile), -8);
+}
+
+void wlq_writeCoordinate(WlqOutFile *outFile, gdouble val)
+{
+    wlq_writeS32(outFile, ldexp(val, 8));
+}
+
+
 void wlq_readRGBA(WlqInFile *inFile, GdkRGBA *color)
 {
-    color->red = wlq_readDouble(inFile);
-    color->green = wlq_readDouble(inFile);
-    color->blue = wlq_readDouble(inFile);
-    color->alpha = wlq_readDouble(inFile);
+    color->red = ldexp(wlq_readU16(inFile), -15);
+    color->green = ldexp(wlq_readU16(inFile), -15);
+    color->blue = ldexp(wlq_readU16(inFile), -15);
+    color->alpha = ldexp(wlq_readU16(inFile), -15);
 }
 
 void wlq_writeRGBA(WlqOutFile *outFile, const GdkRGBA *color)
 {
-    wlq_writeDouble(outFile, color->red);
-    wlq_writeDouble(outFile, color->green);
-    wlq_writeDouble(outFile, color->blue);
-    wlq_writeDouble(outFile, color->alpha);
+    wlq_writeU16(outFile, ldexp(color->red, 15));
+    wlq_writeU16(outFile, ldexp(color->green, 15));
+    wlq_writeU16(outFile, ldexp(color->blue, 15));
+    wlq_writeU16(outFile, ldexp(color->alpha, 15));
 }
 
 void wlq_closeIn(WlqInFile *inFile)

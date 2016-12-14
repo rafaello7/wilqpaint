@@ -136,7 +136,7 @@ static DrawImage *openAsWLQ(const char *fileName)
 {
     static cairo_user_data_key_t dataKey;
     WlqInFile *inFile;
-    int imgWidth, imgHeight, imgStride, imgFormat, i;
+    int imgWidth, imgHeight, imgStride, i;
     DrawImage *di;
     DrawImageState *state;
 
@@ -146,18 +146,17 @@ static DrawImage *openAsWLQ(const char *fileName)
     imgHeight = wlq_readU32(inFile);
     di = di_new(imgWidth, imgHeight);
     state = di->states;
-    state->imgXRef = wlq_readDouble(inFile);
-    state->imgYRef = wlq_readDouble(inFile);
+    state->imgXRef = wlq_readCoordinate(inFile);
+    state->imgYRef = wlq_readCoordinate(inFile);
     wlq_readRGBA(inFile, &state->imgBgColor);
     imgWidth = wlq_readU32(inFile);
     imgHeight = wlq_readU32(inFile);
     imgStride = wlq_readU32(inFile);
-    imgFormat = wlq_readU32(inFile);
     if( imgWidth && imgHeight && imgStride ) {
         char *data = g_malloc(imgHeight * imgStride);
         wlq_read(inFile, data, imgHeight * imgStride);
         state->baseImage = cairo_image_surface_create_for_data(data,
-                imgFormat, imgWidth, imgHeight, imgStride);
+                CAIRO_FORMAT_ARGB32, imgWidth, imgHeight, imgStride);
         cairo_surface_set_user_data(state->baseImage, &dataKey,
                 data, g_free);
     }
@@ -173,7 +172,6 @@ static void saveAsWLQ(DrawImage *di, const char *fileName)
 {
     const DrawImageState *state = di->states + di->stateCur;
     int baseImgWidth = 0, baseImgHeight = 0, baseImgStride = 0, i;
-    int baseImgFormat = 0;
     const unsigned char *data;
     WlqOutFile *outFile;
 
@@ -181,19 +179,17 @@ static void saveAsWLQ(DrawImage *di, const char *fileName)
         return;
     wlq_writeU32(outFile, state->imgWidth);
     wlq_writeU32(outFile, state->imgHeight);
-    wlq_writeDouble(outFile, state->imgXRef);
-    wlq_writeDouble(outFile, state->imgYRef);
+    wlq_writeCoordinate(outFile, state->imgXRef);
+    wlq_writeCoordinate(outFile, state->imgYRef);
     wlq_writeRGBA(outFile, &state->imgBgColor);
     if( state->baseImage != NULL ) {
         baseImgWidth = cairo_image_surface_get_width(state->baseImage);
         baseImgHeight = cairo_image_surface_get_height(state->baseImage);
         baseImgStride = cairo_image_surface_get_stride(state->baseImage);
-        baseImgFormat = cairo_image_surface_get_format(state->baseImage);
     }
     wlq_writeU32(outFile, baseImgWidth);
     wlq_writeU32(outFile, baseImgHeight);
     wlq_writeU32(outFile, baseImgStride);
-    wlq_writeU32(outFile, baseImgFormat);
     if( state->baseImage != NULL ) {
         cairo_surface_flush(state->baseImage);
         data = cairo_image_surface_get_data(state->baseImage);
@@ -217,8 +213,13 @@ DrawImage *di_open(const char *fileName)
         if( pixbuf != NULL ) {
             di = di_new(gdk_pixbuf_get_width(pixbuf),
                     gdk_pixbuf_get_height(pixbuf));
-            di->states[0].baseImage
-                = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1, NULL);
+            DrawImageState *state = di->states;
+            state->baseImage = cairo_image_surface_create(
+                    CAIRO_FORMAT_ARGB32, state->imgWidth, state->imgHeight);
+            cairo_t *cr = cairo_create(state->baseImage);
+            gdk_cairo_set_source_pixbuf(cr, pixbuf, 0, 0);
+            cairo_paint(cr);
+            cairo_destroy(cr);
             g_object_unref(G_OBJECT(pixbuf));
         }
     }
