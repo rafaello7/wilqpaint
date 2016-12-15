@@ -11,7 +11,8 @@ enum {
 
 enum StateModification {
     SM_NEW,                 /* new image */
-    SM_SHAPE_LAYOUT_NEW,    /* add a new shape and begin layout */
+    SM_SHAPE_LAYOUT_NEW_BEG,/* add a new shape and begin layout */
+    SM_SHAPE_LAYOUT_NEW,    /* a new shape layout */
     SM_SHAPE_LAYOUT,        /* change layout of current shape */
     SM_SHAPESIDE_MARK,      /* shape side is selected by mouse press
                              * goes to SM_SHAPE_LAYOUT when mouse is dragged.
@@ -322,6 +323,7 @@ void di_addShape(DrawImage *di, ShapeType shapeType,
     Shape *shape;
     DrawImageState *state;
 
+    di->curStateModification = SM_SHAPE_LAYOUT_NEW_BEG;
     state = getStateForModify(di, SM_SHAPE_LAYOUT_NEW);
     shape = shape_new(shapeType, xRef - state->imgXRef, yRef - state->imgYRef,
             shapeParams);
