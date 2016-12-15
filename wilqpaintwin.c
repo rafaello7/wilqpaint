@@ -272,8 +272,8 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     ShapeParams shapeParams;
     Shape *shape = NULL;
     int i;
-    enum ShapeSide side = SS_RIGHT | SS_BOTTOM | SS_CREATE;
     gdouble thickness, round, winWidth, winHeight, shapeWidth, shapeHeight;
+    gdouble shapeMargin;
     gboolean hasText;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
@@ -292,27 +292,22 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     round = shapeParams.round;
     if( gtk_toggle_button_get_active(priv->shapeFreeForm) ) {
         shape = shape_new(ST_FREEFORM, 0, winHeight / 6, &shapeParams);
-        for(i = 0; i < winWidth; i += 4) {
-            shape_moveTo(shape, i, 0.20 * winHeight
-                    * (3.0 - cos(53.0 * G_PI / winWidth)
-                        - 4.0 * fabs(i - 0.5 * winWidth) / winWidth
-                        - cos(5.3 * (i - 10) / winWidth * G_PI)), side);
+        for(i = 4; i < winWidth; i += 4) {
+            shape_layoutNew(shape, i, winHeight * (1.0/6.0
+                        + 0.2 * (3.0 - cos(53.0 * G_PI / winWidth)
+                            - 4.0 * fabs(i - 0.5 * winWidth) / winWidth
+                            - cos(5.3 * (i - 10) / winWidth * G_PI))));
         }
     }else if( gtk_toggle_button_get_active(priv->shapeLine) ) {
-        shapeWidth = fmax(1, winWidth - 4);
-        shapeHeight = 0;
-        shape = shape_new(ST_LINE, 0.5 * (winWidth - shapeWidth),
-                0.5 * (winHeight - shapeHeight), &shapeParams);
-        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+        shapeMargin = 2;
+        shape = shape_new(ST_LINE, shapeMargin, 0.5 * winHeight, &shapeParams);
+        shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight);
     }else if( gtk_toggle_button_get_active(priv->shapeArrow) ) {
-        shapeWidth = fmax(1, winWidth - 4);
-        shapeHeight = 0;
-        shape = shape_new(ST_ARROW, 0.5 * (winWidth - shapeWidth),
-                0.5 * (winHeight - shapeHeight), &shapeParams);
-        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+        shapeMargin = 2;
+        shape = shape_new(ST_ARROW, shapeMargin, 0.5 * winHeight, &shapeParams);
+        shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight);
     }else if( gtk_toggle_button_get_active(priv->shapeTriangle) ) {
         gdouble htop, hbottom, angle = shapeParams.angle * G_PI / 360;
-        shapeWidth = 0;
         if( round == 0 ) {
             /* it looks that cairo_stroke cutts vertex of triangle when
              * angle is less than 12 degrees */
@@ -337,10 +332,11 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
                 + 2 * round;
             shapeHeight = fmax(1, fmin(hh, hw));
         }
-        shape = shape_new(ST_TRIANGLE, 0.5 * (winWidth - shapeWidth),
+        shape = shape_new(ST_TRIANGLE, 0.5 * winWidth,
                 0.5 * (winHeight - shapeHeight + htop - hbottom),
                 &shapeParams);
-        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+        shape_layoutNew(shape, 0.5 * winWidth,
+                0.5 * (winHeight + shapeHeight + htop - hbottom));
     }else if( gtk_toggle_button_get_active(priv->shapeRect) ) {
         shapeWidth = winWidth - 16 - thickness;
         shapeHeight = winHeight - 16 - thickness;
@@ -349,20 +345,20 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shapeHeight = fmax(1, shapeHeight - round * (2 - G_SQRT2));
         shape = shape_new(ST_RECT, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
-        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+        shape_layoutNew(shape, 0.5 * (winWidth + shapeWidth),
+                0.5 * (winHeight + shapeHeight));
     }else if( gtk_toggle_button_get_active(priv->shapeOval) ) {
         shapeWidth = fmax(1, 0.5 * G_SQRT2 * (winWidth - thickness - 8));
         shapeHeight = fmax(1, 0.5 * G_SQRT2 * (winHeight - thickness - 8));
         shape = shape_new(ST_OVAL, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
-        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+        shape_layoutNew(shape,  0.5 * (winWidth + shapeWidth),
+                0.5 * (winHeight + shapeHeight));
     }else if( gtk_toggle_button_get_active(priv->shapeText) ) {
-        shapeWidth = 0;
-        shapeHeight = 0;
         shapeParams.text = "Ww";
-        shape = shape_new(ST_TEXT, 0.5 * (winWidth - shapeWidth),
-                0.5 * (winHeight - shapeHeight), &shapeParams);
-        shape_moveTo(shape, shapeWidth, shapeHeight, side);
+        shape = shape_new(ST_TEXT, 0.5 * winWidth, 0.5 * winHeight,
+                &shapeParams);
+        shape_layoutNew(shape, 0.5 * winWidth, 0.5 * winHeight);
     }
     if( shape != NULL ) {
         shape_draw(shape, cr, FALSE, FALSE);
@@ -624,7 +620,7 @@ gboolean on_drawing_motion(GtkWidget *widget, GdkEventMotion *event,
     if( event->state & GDK_BUTTON1_MASK ) {
         switch( priv->curAction ) {
         case SA_LAYOUT:
-            di_selectionMoveTo(priv->drawImage, evX, evY);
+            di_selectionDragTo(priv->drawImage, evX, evY);
             break;
         case SA_MOVEIMAGE:
             di_moveTo(priv->drawImage, evX - priv->moveXref,

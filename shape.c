@@ -8,10 +8,6 @@
 
 struct Shape {
     ShapeType type;
-    gdouble xRefLeft;
-    gdouble xRefRight;
-    gdouble yRefTop;
-    gdouble yRefBottom;
     gdouble xLeft;
     gdouble xRight;
     gdouble yTop;
@@ -29,8 +25,6 @@ Shape *shape_new(ShapeType type, gdouble xRef, gdouble yRef,
 {
     Shape *shape = g_malloc(sizeof(Shape));
     shape->type = type;
-    shape->xRefLeft = shape->xRefRight = xRef;
-    shape->yRefTop = shape->yRefBottom = yRef;
     shape->xLeft = shape->xRight = xRef;
     shape->yTop = shape->yBottom = yRef;
     shape->path = NULL;
@@ -69,10 +63,8 @@ Shape *shape_copyOf(const Shape *shape)
 {
     int i;
 
-    Shape *copy = shape_new(shape->type, shape->xRefLeft, shape->yRefTop,
+    Shape *copy = shape_new(shape->type, shape->xLeft, shape->yTop,
             &shape->params);
-    copy->xRefRight = shape->xRefRight;
-    copy->yRefBottom = shape->yRefBottom;
     if( shape->path != NULL ) {
         copy->path = g_malloc(shape->ptCount * sizeof(*shape->path));
         for(i = 0; i < shape->ptCount; ++i)
@@ -98,31 +90,29 @@ Shape *shape_replaceDup(Shape **pShape)
     return *pShape;
 }
 
-void shape_moveBeg(Shape *shape)
+void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom)
 {
-    shape->xRefLeft = shape->xLeft;
-    shape->xRefRight = shape->xRight;
-    shape->yRefTop = shape->yTop;
-    shape->yRefBottom = shape->yBottom;
+    shape->xRight = xRight;
+    shape->yBottom = yBottom;
+    if( shape->type == ST_FREEFORM ) {
+        shape->path = g_realloc(shape->path,
+                ++shape->ptCount * sizeof(DrawPoint));
+        shape->path[shape->ptCount-1].x = xRight - shape->xLeft;
+        shape->path[shape->ptCount-1].y = yBottom - shape->yTop;
+    }
 }
 
-void shape_moveTo(Shape *shape, gdouble x, gdouble y,
+void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
         enum ShapeSide side)
 {
     if( side & (SS_LEFT|SS_MID) )
-        shape->xLeft = shape->xRefLeft + x;
+        shape->xLeft = prev->xLeft + x;
     if( side & (SS_TOP|SS_MID) )
-        shape->yTop = shape->yRefTop + y;
+        shape->yTop = prev->yTop + y;
     if( side & (SS_RIGHT|SS_MID) )
-        shape->xRight = shape->xRefRight + x;
+        shape->xRight = prev->xRight + x;
     if( side & (SS_BOTTOM|SS_MID) )
-        shape->yBottom = shape->yRefBottom + y;
-    if( side & SS_CREATE && shape->type == ST_FREEFORM ) {
-        shape->path = g_realloc(shape->path,
-                ++shape->ptCount * sizeof(DrawPoint));
-        shape->path[shape->ptCount-1].x = shape->xRight - shape->xLeft;
-        shape->path[shape->ptCount-1].y = shape->yBottom - shape->yTop;
-    }
+        shape->yBottom = prev->yBottom + y;
 }
 
 ShapeType shape_getType(const Shape *shape)
@@ -135,10 +125,6 @@ void shape_scale(Shape *shape, gdouble factor)
     int i;
     PangoFontDescription *desc;
 
-    shape->xRefLeft *= factor;
-    shape->xRefRight *= factor;
-    shape->yRefTop *= factor;
-    shape->yRefBottom *= factor;
     shape->xLeft *= factor;
     shape->xRight *= factor;
     shape->yTop *= factor;

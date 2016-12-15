@@ -41,10 +41,10 @@ void di_selectionFromRect(DrawImage*, gdouble x, gdouble y);
 
 void di_setSelectionParam(DrawImage*, enum ShapeParam, const ShapeParams*);
 
-/* Moves all selected shapes from selection reference point to (x, y).
- * The specified point is set as new reference point of selection.
+
+/* Move all selected shapes from selection reference point to (x, y).
  */
-void di_selectionMoveTo(DrawImage*, gdouble x, gdouble y);
+void di_selectionDragTo(DrawImage*, gdouble x, gdouble y);
 
 
 /* Deletes all selected shapes from image

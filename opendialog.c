@@ -70,13 +70,14 @@ static void on_updatePreview(GtkFileChooser *chooser, gpointer user_data)
     gdouble scaleX = 1.0, scaleY = 1.0;
     char imageDimText[20];
     gchar *err;
+    gboolean isNoEntErr;
 
     if( par->di != NULL ) {
         di_free(par->di);
         par->di = NULL;
     }
     if( fname != NULL ) {
-        par->di = di_open(fname, &err);
+        par->di = di_open(fname, &err, &isNoEntErr);
         g_free(fname);
         if( par->di != NULL ) {
             imgWidth = di_getWidth(par->di);

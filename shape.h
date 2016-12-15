@@ -19,8 +19,7 @@ enum ShapeSide {
     SS_BOTTOM           = 0x2,     /* lower Y coordinate is changed */
     SS_LEFT             = 0x4,     /* left  X coordinate is changed */
     SS_RIGHT            = 0x8,     /* right X coordinate is changed */
-    SS_MID              = 0x10,
-    SS_CREATE           = 0x20 /* initial draw (free form shape adds points */
+    SS_MID              = 0x10
 };
 
 enum ShapeParam {
@@ -60,11 +59,17 @@ Shape *shape_copyOf(const Shape*);
  */
 Shape *shape_replaceDup(Shape**);
 
-void shape_moveBeg(Shape*);
 
-/* The x and y coordinates are relative to xRef and yRef.
+/* New shape layout: set right and bottom side of the shape.
  */
-void shape_moveTo(Shape*, gdouble x, gdouble y, enum ShapeSide);
+void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom);
+
+
+/* Shape layout: move shape sides.
+ */
+void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
+        enum ShapeSide);
+
 
 ShapeType shape_getType(const Shape*);
 void shape_scale(Shape*, gdouble factor);
