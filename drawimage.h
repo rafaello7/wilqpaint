@@ -19,7 +19,7 @@ void di_setBackgroundColor(DrawImage*, const GdkRGBA*);
 void di_getBackgroundColor(const DrawImage*, GdkRGBA*);
 
 void di_addShape(DrawImage*, ShapeType, gdouble xRef, gdouble yRef,
-        const ShapeParams*);
+        const ShapeParams*, gboolean addBottom);
 gboolean di_isSelectionEmpty(const DrawImage*);
 ShapeType di_getCurShapeType(const DrawImage*);
 void di_getCurShapeParams(const DrawImage*, ShapeParams*);

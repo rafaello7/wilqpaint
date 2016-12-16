@@ -52,6 +52,7 @@ typedef struct {
     GtkSpinButton   *thickness;
     GtkSpinButton   *angle;
     GtkSpinButton   *round;
+    GtkToggleButton *drawBottom;
     GtkColorChooser *strokeColor;
     GtkColorChooser *fillColor;
     GtkColorChooser *textColor;
@@ -132,6 +133,8 @@ static void wilqpaint_window_class_init(WilqpaintWindowClass *wilqpaintClass)
             WilqpaintWindow, angle);
     gtk_widget_class_bind_template_child_private(widgetClass,
             WilqpaintWindow, round);
+    gtk_widget_class_bind_template_child_private(widgetClass,
+            WilqpaintWindow, drawBottom);
     gtk_widget_class_bind_template_child_private(widgetClass,
             WilqpaintWindow, strokeColor);
     gtk_widget_class_bind_template_child_private(widgetClass,
@@ -624,8 +627,8 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
             else
                 shapeType = ST_ARROW;
             getShapeParamsFromControls(priv, &shapeParams);
-            di_addShape(priv->drawImage, shapeType, evX, evY,
-                    &shapeParams);
+            di_addShape(priv->drawImage, shapeType, evX, evY, &shapeParams,
+                    gtk_toggle_button_get_active(priv->drawBottom));
             g_free((void*)shapeParams.text);
             priv->lastEvX = evX;
             priv->lastEvY = evY;

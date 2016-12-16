@@ -260,7 +260,8 @@ void di_getBackgroundColor(const DrawImage *di, GdkRGBA *color)
 }
 
 void di_addShape(DrawImage *di, ShapeType shapeType,
-        gdouble xRef, gdouble yRef, const ShapeParams *shapeParams)
+        gdouble xRef, gdouble yRef, const ShapeParams *shapeParams,
+        gboolean addBottom)
 {
     Shape *shape;
     DrawImageState *state;
@@ -272,6 +273,12 @@ void di_addShape(DrawImage *di, ShapeType shapeType,
     di->curShapeIdx = state->shapeCount;
     state->shapes = g_realloc(state->shapes,
             ++state->shapeCount * sizeof(Shape*));
+    if( addBottom ) {
+        while( di->curShapeIdx > 0 ) {
+            state->shapes[di->curShapeIdx] = state->shapes[di->curShapeIdx-1];
+            --di->curShapeIdx;
+        }
+    }
     state->shapes[di->curShapeIdx] = shape;
     di->selXRef = xRef;
     di->selYRef = yRef;
