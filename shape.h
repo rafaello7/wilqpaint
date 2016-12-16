@@ -13,13 +13,13 @@ typedef enum {
     ST_ARROW
 } ShapeType;
 
-enum ShapeSide {
-    SS_NONE             = 0x0,
-    SS_TOP              = 0x1,     /* upper Y coordinate is changed */
-    SS_BOTTOM           = 0x2,     /* lower Y coordinate is changed */
-    SS_LEFT             = 0x4,     /* left  X coordinate is changed */
-    SS_RIGHT            = 0x8,     /* right X coordinate is changed */
-    SS_MID              = 0x10
+enum ShapeCorner {
+    SC_NONE,
+    SC_LEFT_TOP,
+    SC_LEFT_BOTTOM,
+    SC_RIGHT_TOP,
+    SC_RIGHT_BOTTOM,
+    SC_MID                          /* the shape middle was selected */
 };
 
 enum ShapeParam {
@@ -62,13 +62,14 @@ Shape *shape_replaceDup(Shape**);
 
 /* New shape layout: set right and bottom side of the shape.
  */
-void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom);
+void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom,
+        gboolean even);
 
 
 /* Shape layout: move shape sides.
  */
 void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
-        enum ShapeSide);
+        enum ShapeCorner, gboolean even);
 
 
 ShapeType shape_getType(const Shape*);
@@ -78,7 +79,7 @@ void shape_getParams(const Shape*, ShapeParams*);
 
 void shape_setParam(Shape*, enum ShapeParam, const ShapeParams*);
 
-enum ShapeSide shape_hitTest(const Shape*, gdouble xBeg, gdouble yBeg,
+enum ShapeCorner shape_hitTest(const Shape*, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd);
 void shape_draw(Shape*, cairo_t*, gboolean isCurrent, gboolean isSelected);
 

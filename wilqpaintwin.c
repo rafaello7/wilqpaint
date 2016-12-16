@@ -21,17 +21,26 @@ struct WilqpaintWindowClass {
 };
 
 typedef enum {
-    SA_LAYOUT,
-    SA_SELECTAREA,
-    SA_MOVEIMAGE
-} ShapeAction;
+    MA_NONE,        /* mouse button is up */
+    MA_LAYOUT,
+    MA_SELECTAREA,
+    MA_MOVEIMAGE
+} MouseAction;
 
 typedef struct {
     char *curFileName;
     DrawImage *drawImage;
-    ShapeAction curAction;
-    gdouble moveXref, moveYref;
+    MouseAction curAction;
+
+    /* MA_LAYOUT */
+    gdouble lastEvX, lastEvY;
+
+    /* selection - MA_SELECTAREA */
     gdouble selXref, selYref, selWidth, selHeight;
+
+    /* MA_MOVEIMAGE */
+    gdouble moveXref, moveYref;
+
     gdouble curZoom;
     gint shapeControlsSetInProgress;
     GridOptions *gopts;
@@ -79,7 +88,7 @@ static void wilqpaint_window_init(WilqpaintWindow *win)
     priv = wilqpaint_window_get_instance_private(win);
     priv->curFileName = NULL;
     priv->drawImage = NULL;
-    priv->curAction = SA_LAYOUT;
+    priv->curAction = MA_NONE;
     priv->moveXref = 0;
     priv->moveYref = 0;
     priv->selWidth = 0;
@@ -296,16 +305,16 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
             shape_layoutNew(shape, i, winHeight * (1.0/6.0
                         + 0.2 * (3.0 - cos(53.0 * G_PI / winWidth)
                             - 4.0 * fabs(i - 0.5 * winWidth) / winWidth
-                            - cos(5.3 * (i - 10) / winWidth * G_PI))));
+                            - cos(5.3 * (i - 10) / winWidth * G_PI))), FALSE);
         }
     }else if( gtk_toggle_button_get_active(priv->shapeLine) ) {
         shapeMargin = 2;
         shape = shape_new(ST_LINE, shapeMargin, 0.5 * winHeight, &shapeParams);
-        shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight);
+        shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight, FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeArrow) ) {
         shapeMargin = 2;
         shape = shape_new(ST_ARROW, shapeMargin, 0.5 * winHeight, &shapeParams);
-        shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight);
+        shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight, FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeTriangle) ) {
         gdouble htop, hbottom, angle = shapeParams.angle * G_PI / 360;
         if( round == 0 ) {
@@ -336,7 +345,7 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
                 0.5 * (winHeight - shapeHeight + htop - hbottom),
                 &shapeParams);
         shape_layoutNew(shape, 0.5 * winWidth,
-                0.5 * (winHeight + shapeHeight + htop - hbottom));
+                0.5 * (winHeight + shapeHeight + htop - hbottom), FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeRect) ) {
         shapeWidth = winWidth - 16 - thickness;
         shapeHeight = winHeight - 16 - thickness;
@@ -346,19 +355,19 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shape = shape_new(ST_RECT, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
         shape_layoutNew(shape, 0.5 * (winWidth + shapeWidth),
-                0.5 * (winHeight + shapeHeight));
+                0.5 * (winHeight + shapeHeight), FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeOval) ) {
         shapeWidth = fmax(1, 0.5 * G_SQRT2 * (winWidth - thickness - 8));
         shapeHeight = fmax(1, 0.5 * G_SQRT2 * (winHeight - thickness - 8));
         shape = shape_new(ST_OVAL, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
         shape_layoutNew(shape,  0.5 * (winWidth + shapeWidth),
-                0.5 * (winHeight + shapeHeight));
+                0.5 * (winHeight + shapeHeight), FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeText) ) {
         shapeParams.text = "Ww";
         shape = shape_new(ST_TEXT, 0.5 * winWidth, 0.5 * winHeight,
                 &shapeParams);
-        shape_layoutNew(shape, 0.5 * winWidth, 0.5 * winHeight);
+        shape_layoutNew(shape, 0.5 * winWidth, 0.5 * winHeight, FALSE);
     }
     if( shape != NULL ) {
         shape_draw(shape, cr, FALSE, FALSE);
@@ -559,50 +568,57 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
     priv = wilqpaint_window_get_instance_private(win);
-    evX = snapXValue(priv, event->x / priv->curZoom);
-    evY = snapYValue(priv, event->y / priv->curZoom);
-    priv->selWidth = priv->selHeight = 0;
-    if( gtk_toggle_button_get_active(priv->shapeSelect) ) {
-        if( event->state & GDK_SHIFT_MASK ) {
-            priv->curAction = SA_SELECTAREA;
-            priv->selXref = evX;
-            priv->selYref = evY;
-        }else
-            priv->curAction = SA_LAYOUT;
-        if( di_selectionFromPoint(priv->drawImage, evX, evY,
-                    priv->curAction == SA_SELECTAREA,
-                    event->state & GDK_CONTROL_MASK) )
-        {
-            di_getCurShapeParams(priv->drawImage, &shapeParams);
-            setControlsFromShapeParams(priv, &shapeParams);
+    if( event->button == GDK_BUTTON_PRIMARY ) {
+        evX = snapXValue(priv, event->x / priv->curZoom);
+        evY = snapYValue(priv, event->y / priv->curZoom);
+        priv->selWidth = priv->selHeight = 0;
+        if( gtk_toggle_button_get_active(priv->shapeSelect) ) {
+            if( event->state & GDK_SHIFT_MASK ) {
+                priv->curAction = MA_SELECTAREA;
+                priv->selXref = evX;
+                priv->selYref = evY;
+            }else{
+                priv->curAction = MA_LAYOUT;
+                priv->lastEvX = evX;
+                priv->lastEvY = evY;
+            }
+            if( di_selectionFromPoint(priv->drawImage, evX, evY,
+                        priv->curAction == MA_SELECTAREA,
+                        event->state & GDK_CONTROL_MASK) )
+            {
+                di_getCurShapeParams(priv->drawImage, &shapeParams);
+                setControlsFromShapeParams(priv, &shapeParams);
+            }
+        }else if( gtk_toggle_button_get_active(priv->shapeImageSize) ) {
+            priv->moveXref = evX - di_getXRef(priv->drawImage);
+            priv->moveYref = evY - di_getYRef(priv->drawImage);
+            priv->curAction = MA_MOVEIMAGE;
+        }else{
+            if( gtk_toggle_button_get_active(priv->shapeFreeForm) )
+                shapeType = ST_FREEFORM;
+            else if( gtk_toggle_button_get_active(priv->shapeLine) )
+                shapeType = ST_LINE;
+            else if( gtk_toggle_button_get_active(priv->shapeTriangle) )
+                shapeType = ST_TRIANGLE;
+            else if( gtk_toggle_button_get_active(priv->shapeRect) )
+                shapeType = ST_RECT;
+            else if( gtk_toggle_button_get_active(priv->shapeOval) )
+                shapeType = ST_OVAL;
+            else if( gtk_toggle_button_get_active(priv->shapeText) )
+                shapeType = ST_TEXT;
+            else
+                shapeType = ST_ARROW;
+            getShapeParamsFromControls(priv, &shapeParams);
+            di_addShape(priv->drawImage, shapeType, evX, evY, &shapeParams);
+            g_free((void*)shapeParams.text);
+            priv->curAction = MA_LAYOUT;
+            priv->lastEvX = evX;
+            priv->lastEvY = evY;
         }
-    }else if( gtk_toggle_button_get_active(priv->shapeImageSize) ) {
-        priv->moveXref = evX - di_getXRef(priv->drawImage);
-        priv->moveYref = evY - di_getYRef(priv->drawImage);
-        priv->curAction = SA_MOVEIMAGE;
-    }else{
-        if( gtk_toggle_button_get_active(priv->shapeFreeForm) )
-            shapeType = ST_FREEFORM;
-        else if( gtk_toggle_button_get_active(priv->shapeLine) )
-            shapeType = ST_LINE;
-        else if( gtk_toggle_button_get_active(priv->shapeTriangle) )
-            shapeType = ST_TRIANGLE;
-        else if( gtk_toggle_button_get_active(priv->shapeRect) )
-            shapeType = ST_RECT;
-        else if( gtk_toggle_button_get_active(priv->shapeOval) )
-            shapeType = ST_OVAL;
-        else if( gtk_toggle_button_get_active(priv->shapeText) )
-            shapeType = ST_TEXT;
-        else
-            shapeType = ST_ARROW;
-        getShapeParamsFromControls(priv, &shapeParams);
-        di_addShape(priv->drawImage, shapeType, evX, evY, &shapeParams);
-        g_free((void*)shapeParams.text);
-        priv->curAction = SA_LAYOUT;
+        redrawDrawingArea(priv->drawing);
+        gtk_widget_grab_focus(widget);
     }
-    redrawDrawingArea(priv->drawing);
-    gtk_widget_grab_focus(widget);
-    return TRUE;
+    return GDK_EVENT_STOP;
 }
 
 gboolean on_drawing_motion(GtkWidget *widget, GdkEventMotion *event,
@@ -619,14 +635,17 @@ gboolean on_drawing_motion(GtkWidget *widget, GdkEventMotion *event,
 
     if( event->state & GDK_BUTTON1_MASK ) {
         switch( priv->curAction ) {
-        case SA_LAYOUT:
-            di_selectionDragTo(priv->drawImage, evX, evY);
+        case MA_LAYOUT:
+            di_selectionDragTo(priv->drawImage, evX, evY,
+                    event->state & GDK_SHIFT_MASK);
+            priv->lastEvX = evX;
+            priv->lastEvY = evY;
             break;
-        case SA_MOVEIMAGE:
+        case MA_MOVEIMAGE:
             di_moveTo(priv->drawImage, evX - priv->moveXref,
                     evY - priv->moveYref);
             break;
-        case SA_SELECTAREA:
+        case MA_SELECTAREA:
             priv->selWidth = evX - priv->selXref;
             priv->selHeight = evY - priv->selYref;
             di_selectionFromRect(priv->drawImage, evX, evY);
@@ -634,7 +653,18 @@ gboolean on_drawing_motion(GtkWidget *widget, GdkEventMotion *event,
         }
         redrawDrawingArea(priv->drawing);
     }
-    return TRUE;
+    return GDK_EVENT_STOP;
+}
+
+gboolean on_drawing_button_release(GtkWidget *widget, GdkEventButton *event,
+               gpointer user_data)
+{
+    WilqpaintWindow *win;
+    WilqpaintWindowPrivate *priv;
+
+    win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
+    priv = wilqpaint_window_get_instance_private(win);
+    priv->curAction = MA_NONE;
 }
 
 gboolean on_drawing_keypress(GtkWidget *widget, GdkEventKey *event,
@@ -650,10 +680,41 @@ gboolean on_drawing_keypress(GtkWidget *widget, GdkEventKey *event,
         if( di_selectionDelete(priv->drawImage) )
             redrawDrawingArea(priv->drawing);
         break;
+    case GDK_KEY_Shift_L:
+    case GDK_KEY_Shift_R:
+        if( priv->curAction == MA_LAYOUT && event->state & GDK_BUTTON1_MASK ) {
+            di_selectionDragTo(priv->drawImage, priv->lastEvX,
+                    priv->lastEvY, TRUE);
+            redrawDrawingArea(priv->drawing);
+        }
+        break;
     default:
         break;
     }
-    return FALSE;
+    return GDK_EVENT_PROPAGATE;
+}
+
+gboolean on_drawing_keyrelease(GtkWidget *widget, GdkEventKey *event,
+        gpointer user_data)
+{
+    WilqpaintWindow *win;
+    WilqpaintWindowPrivate *priv;
+
+    win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
+    priv = wilqpaint_window_get_instance_private(win);
+    switch( event->keyval ) {
+    case GDK_KEY_Shift_L:
+    case GDK_KEY_Shift_R:
+        if( priv->curAction == MA_LAYOUT && event->state & GDK_BUTTON1_MASK ) {
+            di_selectionDragTo(priv->drawImage, priv->lastEvX,
+                    priv->lastEvY, FALSE);
+            redrawDrawingArea(priv->drawing);
+        }
+        break;
+    default:
+        break;
+    }
+    return GDK_EVENT_PROPAGATE;
 }
 
 gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
@@ -710,7 +771,7 @@ gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         cairo_stroke(cr);
         cairo_set_dash(cr, NULL, 0, 0);
     }
-    return FALSE;
+    return GDK_EVENT_STOP;
 }
 
 void on_spinImageSize_value_changed(GtkSpinButton *spin, gpointer user_data)

@@ -90,8 +90,32 @@ Shape *shape_replaceDup(Shape **pShape)
     return *pShape;
 }
 
-void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom)
+void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom,
+        gboolean even)
 {
+    if( even ) {
+        switch( shape->type ) {
+        case ST_LINE:
+        case ST_TRIANGLE:
+        case ST_ARROW:
+            if( fabs(xRight - shape->xLeft) > fabs(yBottom - shape->yTop) ) {
+                yBottom = shape->yTop;
+            }else{
+                xRight = shape->xLeft;
+            }
+            break;
+        case ST_RECT:
+        case ST_OVAL:
+            if( fabs(xRight - shape->xLeft) > fabs(yBottom - shape->yTop) ) {
+                yBottom = shape->yTop
+                    + copysign(xRight - shape->xLeft, yBottom - shape->yTop);
+            }else{
+                xRight = shape->xLeft
+                    + copysign(yBottom - shape->yTop, xRight - shape->xLeft);
+            }
+            break;
+        }
+    }
     shape->xRight = xRight;
     shape->yBottom = yBottom;
     if( shape->type == ST_FREEFORM ) {
@@ -103,16 +127,59 @@ void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom)
 }
 
 void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
-        enum ShapeSide side)
+        enum ShapeCorner corner, gboolean even)
 {
-    if( side & (SS_LEFT|SS_MID) )
+    gdouble shapeWidth, shapeHeight;
+
+    if( corner == SC_LEFT_TOP || corner == SC_LEFT_BOTTOM || corner == SC_MID )
         shape->xLeft = prev->xLeft + x;
-    if( side & (SS_TOP|SS_MID) )
+    if( corner == SC_LEFT_TOP || corner == SC_RIGHT_TOP || corner == SC_MID )
         shape->yTop = prev->yTop + y;
-    if( side & (SS_RIGHT|SS_MID) )
+    if(corner == SC_RIGHT_TOP || corner == SC_RIGHT_BOTTOM || corner == SC_MID)
         shape->xRight = prev->xRight + x;
-    if( side & (SS_BOTTOM|SS_MID) )
+    if( corner == SC_LEFT_BOTTOM || corner == SC_RIGHT_BOTTOM
+            || corner == SC_MID )
         shape->yBottom = prev->yBottom + y;
+
+    shapeWidth = shape->xRight - shape->xLeft;
+    shapeHeight = shape->yBottom - shape->yTop;
+    if( corner != SC_MID && even ) {
+        switch( shape->type ) {
+        case ST_LINE:
+        case ST_TRIANGLE:
+        case ST_ARROW:
+            if( fabs(shapeWidth) >= fabs(shapeHeight) ) {
+                if( corner == SC_LEFT_TOP || corner == SC_RIGHT_TOP )
+                    shape->yTop = shape->yBottom;
+                else
+                    shape->yBottom = shape->yTop;
+            }else{
+                if( corner == SC_LEFT_TOP || corner == SC_LEFT_BOTTOM )
+                    shape->xLeft = shape->xRight;
+                else
+                    shape->xRight = shape->xLeft;
+            }
+            break;
+        case ST_RECT:
+        case ST_OVAL:
+            if( fabs(shapeWidth) >= fabs(shapeHeight) ) {
+                if( corner == SC_LEFT_TOP || corner == SC_RIGHT_TOP )
+                    shape->yTop = shape->yBottom
+                        - copysign(shapeWidth, shapeHeight);
+                else
+                    shape->yBottom = shape->yTop
+                        + copysign(shapeWidth, shapeHeight);
+            }else{
+                if( corner == SC_LEFT_TOP || corner == SC_LEFT_BOTTOM )
+                    shape->xLeft = shape->xRight
+                        - copysign(shapeHeight, shapeWidth);
+                else
+                    shape->xRight = shape->xLeft
+                        + copysign(shapeHeight, shapeWidth);
+            }
+            break;
+        }
+    }
 }
 
 ShapeType shape_getType(const Shape *shape)
@@ -194,10 +261,10 @@ void shape_setParam(Shape *shape, enum ShapeParam shapeParam,
     }
 }
 
-enum ShapeSide shape_hitTest(const Shape *shape, gdouble xBeg, gdouble yBeg,
+enum ShapeCorner shape_hitTest(const Shape *shape, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd)
 {
-    enum ShapeSide res = SS_NONE;
+    enum ShapeCorner res = SC_NONE;
     enum { CORNERDISTMAX = 4 };
 
     if( xBeg == xEnd && yBeg == yEnd ) {
@@ -206,26 +273,26 @@ enum ShapeSide shape_hitTest(const Shape *shape, gdouble xBeg, gdouble yBeg,
         case ST_OVAL:
             if( fabs(xBeg - shape->xRight) < CORNERDISTMAX &&
                     fabs(yEnd - shape->yTop) < CORNERDISTMAX )
-                res = SS_RIGHT | SS_TOP;
+                res = SC_RIGHT_TOP;
             else if( fabs(xBeg - shape->xLeft) < CORNERDISTMAX &&
                     fabs(yBeg - shape->yBottom) < CORNERDISTMAX )
-                res = SS_LEFT | SS_BOTTOM;
+                res = SC_LEFT_BOTTOM;
             /* go forth */
         case ST_LINE:
         case ST_ARROW:
         case ST_TRIANGLE:
             if( fabs(xBeg - shape->xRight) < CORNERDISTMAX &&
                     fabs(yBeg - shape->yBottom) < CORNERDISTMAX )
-                res = SS_RIGHT | SS_BOTTOM;
+                res = SC_RIGHT_BOTTOM;
             else if( fabs(xBeg - shape->xLeft) < CORNERDISTMAX &&
                     fabs(yBeg - shape->yTop) < CORNERDISTMAX )
-                res = SS_LEFT | SS_TOP;
+                res = SC_LEFT_TOP;
             break;
         default:
             break;
         }
     }
-    if( res == SS_NONE ) {
+    if( res == SC_NONE ) {
         if( xEnd < xBeg ) {
             gdouble t = xBeg;
             xBeg = xEnd;
@@ -242,33 +309,33 @@ enum ShapeSide shape_hitTest(const Shape *shape, gdouble xBeg, gdouble yBeg,
                     shape->params.thickness,
                     xBeg - shape->xLeft, yBeg - shape->yTop,
                     xEnd - shape->xLeft, yEnd - shape->yTop) )
-                res = SS_MID;
+                res = SC_MID;
             break;
         case ST_LINE:
             if( hittest_line(shape->xLeft, shape->yTop,
                     shape->xRight, shape->yBottom,
                     shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
-                res = SS_MID;
+                res = SC_MID;
             break;
         case ST_TRIANGLE:
             if( hittest_triangle(shape->xLeft, shape->yTop,
                     shape->xRight, shape->yBottom,
                     shape->params.angle, shape->params.round,
                     shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
-                res = SS_MID;
+                res = SC_MID;
             break;
         case ST_RECT:
             if( hittest_rect(shape->xLeft, shape->yTop,
                     shape->xRight, shape->yBottom,
                     shape->params.round, shape->params.thickness,
                     xBeg, yBeg, xEnd, yEnd) )
-                res = SS_MID;
+                res = SC_MID;
             break;
         case ST_OVAL:
             if( hittest_ellipse(shape->xLeft, shape->yTop,
                     shape->xRight, shape->yBottom,
                     shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
-                res = SS_MID;
+                res = SC_MID;
             break;
         case ST_TEXT:
             if( hittest_rect(
@@ -277,13 +344,13 @@ enum ShapeSide shape_hitTest(const Shape *shape, gdouble xBeg, gdouble yBeg,
                     shape->xRight + 0.5 * shape->drawnTextWidth,
                     shape->yBottom + 0.5 * shape->drawnTextHeight, 0,
                     2 * shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
-                res = SS_MID;
+                res = SC_MID;
             break;
         default:
             if( hittest_arrow(shape->xLeft, shape->yTop,
                     shape->xRight, shape->yBottom,
                     shape->params.thickness, xBeg, yBeg, xEnd, yEnd) )
-                res = SS_MID;
+                res = SC_MID;
             break;
         }
     }

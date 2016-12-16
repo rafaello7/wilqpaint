@@ -21,6 +21,8 @@ void di_addShape(DrawImage*, ShapeType, gdouble xRef, gdouble yRef,
 gboolean di_isCurShapeSet(const DrawImage*);
 ShapeType di_getCurShapeType(const DrawImage*);
 void di_getCurShapeParams(const DrawImage*, ShapeParams*);
+void di_curShapeRaise(DrawImage*);
+void di_curShapeSink(DrawImage*);
 
 void di_undo(DrawImage*);
 void di_redo(DrawImage*);
@@ -44,7 +46,7 @@ void di_setSelectionParam(DrawImage*, enum ShapeParam, const ShapeParams*);
 
 /* Move all selected shapes from selection reference point to (x, y).
  */
-void di_selectionDragTo(DrawImage*, gdouble x, gdouble y);
+void di_selectionDragTo(DrawImage*, gdouble x, gdouble y, gboolean even);
 
 
 /* Deletes all selected shapes from image

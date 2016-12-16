@@ -14,6 +14,7 @@ enum StateModification {
     SM_SHAPE_LAYOUT_NEW_BEG,/* add a new shape and begin layout */
     SM_SHAPE_LAYOUT_NEW,    /* a new shape layout */
     SM_SHAPE_LAYOUT,        /* change layout of current shape */
+    SM_SHAPE_ZORDER,        /* raise/bring down shape */
     SM_SHAPESIDE_MARK,      /* shape side is selected by mouse press
                              * goes to SM_SHAPE_LAYOUT when mouse is dragged.
                              * The shape is also (the only) selection member */
@@ -42,7 +43,7 @@ struct DrawImage {
     gint stateFirst, stateCur, stateLast;
     enum StateModification curStateModification;
     gint curShapeIdx;               /* current shape, -1 for none */
-    enum ShapeSide dragShapeSide;
+    enum ShapeCorner dragShapeCorner;
     guint nextStateId;
     guint savedStateId;
     GHashTable *selection;
@@ -70,7 +71,7 @@ DrawImage *di_new(gint imgWidth, gint imgHeight)
     di->stateLast = 0;
     di->curStateModification = SM_NEW;
     di->curShapeIdx = -1;
-    di->dragShapeSide = SS_NONE;
+    di->dragShapeCorner = SC_NONE;
     di->nextStateId = 1;
     di->savedStateId = 0;
     di->selection = g_hash_table_new(NULL, NULL);
@@ -360,6 +361,42 @@ void di_getCurShapeParams(const DrawImage *di, ShapeParams *shapeParams)
         shape_getParams(curShape(di), shapeParams);
 }
 
+void di_curShapeRaise(DrawImage *di)
+{
+    Shape *shape;
+
+    DrawImageState *state = di->states + di->stateCur;
+    if( di->curShapeIdx >= 0 && di->curShapeIdx + 1 < state->shapeCount ) {
+        state = getStateForModify(di, SM_SHAPE_ZORDER);
+        g_hash_table_remove(di->selection, GINT_TO_POINTER(di->curShapeIdx));
+        shape = state->shapes[di->curShapeIdx];
+        while( di->curShapeIdx + 1 < state->shapeCount ) {
+            state->shapes[di->curShapeIdx] = state->shapes[di->curShapeIdx+1];
+            ++di->curShapeIdx;
+        }
+        state->shapes[di->curShapeIdx] = shape;
+        g_hash_table_add(di->selection, GINT_TO_POINTER(di->curShapeIdx));
+    }
+}
+
+void di_curShapeSink(DrawImage *di)
+{
+    Shape *shape;
+
+    DrawImageState *state = di->states + di->stateCur;
+    if( di->curShapeIdx > 0 ) {
+        state = getStateForModify(di, SM_SHAPE_ZORDER);
+        g_hash_table_remove(di->selection, GINT_TO_POINTER(di->curShapeIdx));
+        shape = state->shapes[di->curShapeIdx];
+        while( di->curShapeIdx > 0 ) {
+            state->shapes[di->curShapeIdx] = state->shapes[di->curShapeIdx-1];
+            --di->curShapeIdx;
+        }
+        state->shapes[di->curShapeIdx] = shape;
+        g_hash_table_add(di->selection, GINT_TO_POINTER(di->curShapeIdx));
+    }
+}
+
 void di_undo(DrawImage *di)
 {
     if( di->stateCur != di->stateFirst ) {
@@ -390,7 +427,7 @@ gboolean di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
     DrawImageState *state = di->states + di->stateCur;
     int shapeIdx;
     gpointer idxAsPtr;
-    enum ShapeSide side;
+    enum ShapeCorner corner;
 
     g_hash_table_remove_all(di->addedByRectSel);
     if( ! extend )
@@ -403,9 +440,9 @@ gboolean di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
         for( shapeIdx = state->shapeCount - 1; shapeIdx >= 0; --shapeIdx ) {
             idxAsPtr = GINT_TO_POINTER(shapeIdx);
             if( ! g_hash_table_contains(di->selection, idxAsPtr)
-                && (side = shape_hitTest(state->shapes[shapeIdx],
+                && (corner = shape_hitTest(state->shapes[shapeIdx],
                     x - state->imgXRef, y - state->imgYRef,
-                    x - state->imgXRef, y - state->imgYRef)) != SS_NONE)
+                    x - state->imgXRef, y - state->imgYRef)) != SC_NONE)
             {
                 g_hash_table_add(di->addedByRectSel, idxAsPtr);
                 g_hash_table_add(di->selection, idxAsPtr);
@@ -414,17 +451,17 @@ gboolean di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
     }else{
         shapeIdx = state->shapeCount - 1;
         while( shapeIdx >= 0 && di->curShapeIdx == -1 ) {
-            if( (side = shape_hitTest(state->shapes[shapeIdx],
+            if( (corner = shape_hitTest(state->shapes[shapeIdx],
                     x - state->imgXRef, y - state->imgYRef,
-                    x - state->imgXRef, y - state->imgYRef)) != SS_NONE )
+                    x - state->imgXRef, y - state->imgYRef)) != SC_NONE )
             {
                 di->curShapeIdx = shapeIdx;
                 idxAsPtr = GINT_TO_POINTER(shapeIdx);
                 if( ! g_hash_table_contains(di->selection, idxAsPtr) )
                     g_hash_table_add(di->selection, idxAsPtr);
-                if( ! extend && side != SS_MID ) {
+                if( ! extend && corner != SC_MID ) {
                     di->curStateModification = SM_SHAPESIDE_MARK;
-                    di->dragShapeSide = side;
+                    di->dragShapeCorner = corner;
                 }
             }
             --shapeIdx;
@@ -474,17 +511,18 @@ void di_setSelectionParam(DrawImage *di, enum ShapeParam shapeParam,
     }
 }
 
-void di_selectionDragTo(DrawImage *di, gdouble x, gdouble y)
+void di_selectionDragTo(DrawImage *di, gdouble x, gdouble y, gboolean even)
 {
     GHashTableIter iter;
     gpointer key;
     DrawImageState *state, *stPrev;
+    gdouble mvX, mvY;
 
     switch( di->curStateModification ) {
     case SM_SHAPE_LAYOUT_NEW:
         state = getStateForModify(di, SM_SHAPE_LAYOUT_NEW);
         shape_layoutNew(state->shapes[di->curShapeIdx],
-                x - state->imgXRef, y - state->imgYRef);
+                x - state->imgXRef, y - state->imgYRef, even);
         break;
     case SM_SHAPESIDE_MARK:
     case SM_SHAPE_LAYOUT:
@@ -492,7 +530,7 @@ void di_selectionDragTo(DrawImage *di, gdouble x, gdouble y)
         stPrev = di->states + (di->stateCur == 0 ? UNDO_MAX : di->stateCur) - 1;
         shape_layout(state->shapes[di->curShapeIdx],
                 stPrev->shapes[di->curShapeIdx],
-                x - di->selXRef, y - di->selYRef, di->dragShapeSide);
+                x - di->selXRef, y - di->selYRef, di->dragShapeCorner, even);
         break;
     case SM_SELECTION_MARK:
     case SM_SEL_DRAG:
@@ -501,11 +539,18 @@ void di_selectionDragTo(DrawImage *di, gdouble x, gdouble y)
             stPrev = di->states
                     + (di->stateCur == 0 ? UNDO_MAX : di->stateCur) - 1;
             g_hash_table_iter_init(&iter, di->selection);
+            mvX = x - di->selXRef;
+            mvY = y - di->selYRef;
+            if( even ) {
+                if( fabs(mvX) >= fabs(mvY) )
+                    mvY = 0;
+                else
+                    mvX = 0;
+            }
             while( g_hash_table_iter_next(&iter, &key, NULL) ) {
                 gint shapeIdx = GPOINTER_TO_INT(key);
                 shape_layout(state->shapes[shapeIdx],
-                        stPrev->shapes[shapeIdx],
-                        x - di->selXRef, y - di->selYRef, SS_MID);
+                        stPrev->shapes[shapeIdx], mvX, mvY, SC_MID, FALSE);
             }
         }
         break;
