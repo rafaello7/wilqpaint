@@ -1,6 +1,7 @@
 #include <gtk/gtk.h>
 #include "opendialog.h"
 #include "drawimage.h"
+#include "imagefile.h"
 
 
 static void addFilters(GtkFileChooser *chooser)
@@ -77,7 +78,7 @@ static void on_updatePreview(GtkFileChooser *chooser, gpointer user_data)
         par->di = NULL;
     }
     if( fname != NULL ) {
-        par->di = di_open(fname, &err, &isNoEntErr);
+        par->di = imgfile_open(fname, &err, &isNoEntErr);
         g_free(fname);
         if( par->di != NULL ) {
             imgWidth = di_getWidth(par->di);

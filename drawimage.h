@@ -5,8 +5,10 @@
 
 typedef struct DrawImage DrawImage;
 
-DrawImage *di_new(gint imgWidth, gint imgHeight);
-DrawImage *di_open(const char *fileName, gchar **errLoc, gboolean *isNoEntErr);
+DrawImage *di_new(gint imgWidth, gint imgHeight, const GdkPixbuf *baseImage);
+
+DrawImage *di_openWLQ(const char *fileName, gchar **errLoc,
+        gboolean *isNoEntErr);
 
 gint di_getWidth(const DrawImage*);
 gint di_getHeight(const DrawImage*);
@@ -72,7 +74,8 @@ void di_setSize(DrawImage*, gint imgWidth, gint imgHeight,
 
 void di_draw(const DrawImage*, cairo_t*, gdouble zoom);
 
-gboolean di_save(DrawImage*, const char *fileName, gchar **errLoc);
+gboolean di_saveWLQ(DrawImage*, const char *fileName, gchar **errLoc);
+void di_markSaved(DrawImage*);
 gboolean di_isModified(const DrawImage*);
 
 void di_free(DrawImage*);

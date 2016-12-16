@@ -11,7 +11,6 @@ static GtkFileFilter **getFilters(GtkComboBoxText *fileType,
     char patt[20];
     GtkFileFilter *filt, **filters;
 
-    formats = gdk_pixbuf_get_formats();
     filters = g_malloc(sizeof(GtkFileFilter*));
     filt = gtk_file_filter_new();
     gtk_file_filter_set_name(filt, "wilqpaint native (*.wlq)");
@@ -20,6 +19,7 @@ static GtkFileFilter **getFilters(GtkComboBoxText *fileType,
     gtk_combo_box_text_append(fileType, "wlq",
             gtk_file_filter_get_name(filt));
 
+    formats = gdk_pixbuf_get_formats();
     for(item = formats; item != NULL; item = g_slist_next(item)) {
         GdkPixbufFormat *fmt = item->data;
         if( !gdk_pixbuf_format_is_writable(fmt) )
@@ -51,7 +51,14 @@ static GtkFileFilter **getFilters(GtkComboBoxText *fileType,
         filters[filterCount++] = filt;
     }
     g_slist_free(formats);
-    filters = g_realloc(filters, (filterCount+1) * sizeof(GtkFileFilter*));
+
+    filters = g_realloc(filters, (filterCount+2) * sizeof(GtkFileFilter*));
+    filt = gtk_file_filter_new();
+    gtk_file_filter_set_name(filt, "PDF (*.pdf)");
+    gtk_file_filter_add_pattern(filt, "*.pdf");
+    filters[filterCount++] = filt;
+    gtk_combo_box_text_append(fileType, "pdf",
+            gtk_file_filter_get_name(filt));
     filters[filterCount] = NULL;
     return filters;
 }

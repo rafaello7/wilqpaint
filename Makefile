@@ -1,6 +1,6 @@
-OBJS = wlqpersistence.o hittest.o shapedrawing.o shape.o \
-	   drawimage.o colorchooser.o opendialog.o savedialog.o \
-	   sizedialog.o griddialog.o quitdialog.o aboutdialog.o \
+OBJS = wlqpersistence.o hittest.o shapedrawing.o shape.o drawimage.o \
+	   colorchooser.o opendialog.o savedialog.o sizedialog.o \
+	   griddialog.o quitdialog.o aboutdialog.o imagefile.o \
 	   wilqpaintwin.o wilqpaintapp.o wilqpaint.o resources.o
 
 UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui aboutdialog.ui \

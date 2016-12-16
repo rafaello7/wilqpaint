@@ -8,6 +8,7 @@
 #include "quitdialog.h"
 #include "sizedialog.h"
 #include "aboutdialog.h"
+#include "imagefile.h"
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -896,42 +897,6 @@ void on_shapeOval_toggled(GtkToggleButton *toggle, gpointer user_data)
         setShapeToolsActivePage(toggle, STP_SHAPE);
 }
 
-static gboolean isFileFormatWritable(const char *fname)
-{
-    GSList *formats, *item;
-    const char *ext;
-    char *basename;
-    int i;
-    gboolean res = FALSE;
-
-    basename = g_path_get_basename(fname);
-    ext = strrchr(basename, '.');
-    if( ext != NULL ) {
-        ++ext;
-        if( !strcmp(ext, "wlq") ) {
-            res = TRUE;
-        }else{
-            formats = gdk_pixbuf_get_formats();
-            for(item = formats; item != NULL && !res;
-                    item = g_slist_next(item))
-            {
-                GdkPixbufFormat *fmt = item->data;
-                if( ! gdk_pixbuf_format_is_writable(fmt) )
-                    continue;
-                gchar **extensions = gdk_pixbuf_format_get_extensions(fmt);
-                for(i = 0; extensions[i] && ! res; ++i) {
-                    if( ! strcmp(ext, extensions[i]) )
-                        res = TRUE;
-                }
-                g_strfreev(extensions);
-            }
-            g_slist_free(formats);
-        }
-    }
-    g_free(basename);
-    return res;
-}
-
 /* Saves the file modifications.
  * If onQuit flag is set to TRUE, the file is saved only when modified.
  * User is also asked for save changes in this case.
@@ -964,7 +929,7 @@ static gboolean saveChanges(WilqpaintWindow *win,
         }
     }
     if( priv->curFileName == NULL || forceChooseFileName
-            || !isFileFormatWritable(priv->curFileName) )
+            || !imgfile_isFormatWritable(priv->curFileName) )
     {
         char *fname = showSaveFileDialog(GTK_WINDOW(win), priv->curFileName);
         if( fname ) {
@@ -975,7 +940,7 @@ static gboolean saveChanges(WilqpaintWindow *win,
     }
     if( doSave ) {
         gchar *err;
-        doSave = di_save(priv->drawImage, priv->curFileName, &err);
+        doSave = imgfile_save(priv->drawImage, priv->curFileName, &err);
         if( ! doSave ) {
             GtkWidget *messageDialog = gtk_message_dialog_new(
                     GTK_WINDOW(win), GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
@@ -1017,7 +982,7 @@ static void newFile(WilqpaintWindow *win,
                     &imgWidth, &imgHeight, FALSE) )
             return;
     }
-    newDrawImg = di_new(imgWidth, imgHeight);
+    newDrawImg = di_new(imgWidth, imgHeight, NULL);
     setCurDrawImage(win, fname, newDrawImg);
 }
 
@@ -1029,7 +994,7 @@ static void openFile(WilqpaintWindow *win, const char *fname)
     gboolean isNoEntErr;
 
     priv = wilqpaint_window_get_instance_private(win);
-    newDrawImg = di_open(fname, &err, &isNoEntErr);
+    newDrawImg = imgfile_open(fname, &err, &isNoEntErr);
     if( newDrawImg != NULL )
         setCurDrawImage(win, fname, newDrawImg);
     else{
