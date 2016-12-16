@@ -30,7 +30,7 @@ void di_redo(DrawImage*);
 /* Hits selected shape from point.
  */
 gboolean di_curShapeFromPoint(DrawImage*, gdouble x, gdouble y,
-        gboolean addToSel);
+        gdouble zoom, gboolean extendSel);
 
 
 /* Begins a new rect selection
@@ -70,7 +70,7 @@ void di_moveTo(DrawImage*, gdouble imgXRef, gdouble imgYRef);
 void di_setSize(DrawImage*, gint imgWidth, gint imgHeight,
         gdouble translateXfactor, gdouble translateYfactor);
 
-void di_draw(const DrawImage*, cairo_t*);
+void di_draw(const DrawImage*, cairo_t*, gdouble zoom);
 
 gboolean di_save(DrawImage*, const char *fileName, gchar **errLoc);
 gboolean di_isModified(const DrawImage*);

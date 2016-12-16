@@ -370,7 +370,7 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shape_layoutNew(shape, 0.5 * winWidth, 0.5 * winHeight, FALSE);
     }
     if( shape != NULL ) {
-        shape_draw(shape, cr, FALSE, FALSE);
+        shape_draw(shape, cr, 1.0, FALSE, FALSE);
         shape_unref(shape);
     }
 }
@@ -584,7 +584,7 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
                 priv->lastEvX = evX;
                 priv->lastEvY = evY;
                 if( di_curShapeFromPoint(priv->drawImage, evX, evY,
-                            event->state & GDK_CONTROL_MASK) )
+                            priv->curZoom, event->state & GDK_CONTROL_MASK) )
                 {
                     di_getCurShapeParams(priv->drawImage, &shapeParams);
                     setControlsFromShapeParams(priv, &shapeParams);
@@ -600,7 +600,8 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
         {
             priv->lastEvX = event->x;
             priv->lastEvY = event->x;
-            if( di_curShapeFromPoint(priv->drawImage, evX, evY, FALSE))
+            if( di_curShapeFromPoint(priv->drawImage, evX, evY, priv->curZoom,
+                        FALSE))
             {
                 di_getCurShapeParams(priv->drawImage, &shapeParams);
                 setControlsFromShapeParams(priv, &shapeParams);
@@ -741,10 +742,7 @@ gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
     priv = wilqpaint_window_get_instance_private(win);
 
-    cairo_save(cr);
-    cairo_scale(cr, priv->curZoom, priv->curZoom);
-    di_draw(priv->drawImage, cr);
-    cairo_restore(cr);
+    di_draw(priv->drawImage, cr, priv->curZoom);
     scale = grid_getScale(priv->gopts) * priv->curZoom;
     if( grid_isShow(priv->gopts) && scale > 2 ) {
         gridXOffset = grid_getXOffset(priv->gopts) * priv->curZoom;

@@ -58,7 +58,7 @@ gboolean on_filePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
     struct CallbackParam *par = data;
     if( par->di != NULL ) {
-        di_draw(par->di, cr);
+        di_draw(par->di, cr, 1.0);
     }
 }
 

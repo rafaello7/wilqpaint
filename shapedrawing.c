@@ -80,46 +80,48 @@ void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
 }
 
 void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
-        double xRight, gdouble yBottom, gdouble thickness, gdouble angle)
+        double xRight, gdouble yBottom, gdouble thickness, gdouble proportion,
+        gdouble angle)
 {
-    double xBeg, yBeg, fact;
+    double xBeg, yBeg;
 
     if( thickness < 1.0 )
         thickness = 1.0;
-    fact = 2.0 + 6.0 / thickness;
-    double lineWidth = fmax(thickness, 1.0);
     double minLen;
     double lineLen = sqrt((xRight - xLeft) * (xRight - xLeft)
             + (yBottom - yTop) * (yBottom - yTop));
     double angleTan = tan(angle * G_PI / 360);
-    double xEnd = 0.5 * fact * lineWidth / angleTan * (xRight-xLeft) / lineLen;
-    double yEnd = 0.5 * fact * lineWidth / angleTan * (yBottom-yTop) / lineLen;
+    double xEnd = 0.5 * proportion * thickness / angleTan
+        * (xRight-xLeft) / lineLen;
+    double yEnd = 0.5 * proportion * thickness / angleTan
+        * (yBottom-yTop) / lineLen;
     cairo_move_to(cr, xRight, yBottom);
     cairo_line_to(cr, xRight - xEnd - yEnd * angleTan,
             yBottom - yEnd + xEnd * angleTan);
     if( angle < 90 ) {
         xBeg = xEnd * 0.5 * (1 + angleTan * angleTan);
         yBeg = yEnd * 0.5 * (1 + angleTan * angleTan);
-        minLen = 0.5 * lineWidth * ((0.5 * fact + 0.5) / angleTan
-                + (0.5 * fact - 0.5) * angleTan);
+        minLen = 0.5 * thickness * ((0.5 * proportion + 0.5) / angleTan
+                + (0.5 * proportion - 0.5) * angleTan);
     }else{
         xBeg = xEnd;
         yBeg = yEnd;
-        minLen = 0.5 * fact * lineWidth / angleTan;
+        minLen = 0.5 * proportion * thickness / angleTan;
     }
     if( lineLen > minLen ) {
         cairo_line_to(cr,
-            xRight - (xEnd + yEnd * angleTan)/fact
-                 - xBeg * (1 - 1 / fact),
-            yBottom - (yEnd - xEnd * angleTan)/fact
-                 - yBeg * (1 - 1 / fact));
-        cairo_line_to(cr, xLeft - lineWidth * (yBottom - yTop) / lineLen / 2,
-                yTop + lineWidth * (xRight - xLeft) / lineLen / 2);
-        cairo_line_to(cr, xLeft + lineWidth * (yBottom - yTop) / lineLen / 2,
-                yTop - lineWidth * (xRight - xLeft) / lineLen / 2);
-        cairo_line_to(cr, xRight - (xEnd - yEnd * angleTan)/fact
-                 - xBeg * (1 - 1 / fact),
-            yBottom - (yEnd + xEnd * angleTan)/fact - yBeg * (1 - 1 / fact));
+            xRight - (xEnd + yEnd * angleTan)/proportion
+                 - xBeg * (1 - 1 / proportion),
+            yBottom - (yEnd - xEnd * angleTan)/proportion
+                 - yBeg * (1 - 1 / proportion));
+        cairo_line_to(cr, xLeft - thickness * (yBottom - yTop) / lineLen / 2,
+                yTop + thickness * (xRight - xLeft) / lineLen / 2);
+        cairo_line_to(cr, xLeft + thickness * (yBottom - yTop) / lineLen / 2,
+                yTop - thickness * (xRight - xLeft) / lineLen / 2);
+        cairo_line_to(cr, xRight - (xEnd - yEnd * angleTan)/proportion
+                - xBeg * (1 - 1 / proportion),
+                yBottom - (yEnd + xEnd * angleTan)/proportion
+                - yBeg * (1 - 1 / proportion));
     }else if( angle < 90 ) {
         cairo_line_to(cr, xRight - xBeg, yBottom - yBeg);
     }

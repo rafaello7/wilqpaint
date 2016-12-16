@@ -422,7 +422,7 @@ void di_redo(DrawImage *di)
 }
 
 gboolean di_curShapeFromPoint(DrawImage *di, gdouble x, gdouble y,
-        gboolean addToSel)
+        gdouble zoom, gboolean extendSel)
 {
     DrawImageState *state = di->states + di->stateCur;
     int shapeIdx;
@@ -430,7 +430,7 @@ gboolean di_curShapeFromPoint(DrawImage *di, gdouble x, gdouble y,
     enum ShapeCorner corner;
 
     g_hash_table_remove_all(di->addedByRectSel);
-    if( ! addToSel )
+    if( ! extendSel )
         g_hash_table_remove_all(di->selection);
     di->curShapeIdx = -1;
     di->curStateModification = SM_SELECTION_MARK;
@@ -438,18 +438,25 @@ gboolean di_curShapeFromPoint(DrawImage *di, gdouble x, gdouble y,
     di->selYRef = y;
     shapeIdx = state->shapeCount - 1;
     while( shapeIdx >= 0 && di->curShapeIdx == -1 ) {
-        if( (corner = shape_hitTest(state->shapes[shapeIdx],
-                x - state->imgXRef, y - state->imgYRef,
-                x - state->imgXRef, y - state->imgYRef)) != SC_NONE )
+        if( (corner = shape_cornerHitTest(state->shapes[shapeIdx],
+                x - state->imgXRef, y - state->imgYRef, zoom)) != SC_NONE )
         {
             di->curShapeIdx = shapeIdx;
             idxAsPtr = GINT_TO_POINTER(shapeIdx);
             if( ! g_hash_table_contains(di->selection, idxAsPtr) )
                 g_hash_table_add(di->selection, idxAsPtr);
-            if( ! addToSel && corner != SC_MID ) {
+            if( ! extendSel ) {
                 di->curStateModification = SM_SHAPESIDE_MARK;
                 di->dragShapeCorner = corner;
             }
+        }else if( shape_hitTest(state->shapes[shapeIdx],
+                x - state->imgXRef, y - state->imgYRef,
+                x - state->imgXRef, y - state->imgYRef) )
+        {
+            di->curShapeIdx = shapeIdx;
+            idxAsPtr = GINT_TO_POINTER(shapeIdx);
+            if( ! g_hash_table_contains(di->selection, idxAsPtr) )
+                g_hash_table_add(di->selection, idxAsPtr);
         }
         --shapeIdx;
     }
@@ -462,7 +469,6 @@ void di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
     DrawImageState *state = di->states + di->stateCur;
     int shapeIdx;
     gpointer idxAsPtr;
-    enum ShapeCorner corner;
 
     g_hash_table_remove_all(di->addedByRectSel);
     if( ! extend )
@@ -474,9 +480,9 @@ void di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
     for( shapeIdx = state->shapeCount - 1; shapeIdx >= 0; --shapeIdx ) {
         idxAsPtr = GINT_TO_POINTER(shapeIdx);
         if( ! g_hash_table_contains(di->selection, idxAsPtr)
-            && (corner = shape_hitTest(state->shapes[shapeIdx],
+            && shape_hitTest(state->shapes[shapeIdx],
                 x - state->imgXRef, y - state->imgYRef,
-                x - state->imgXRef, y - state->imgYRef)) != SC_NONE)
+                x - state->imgXRef, y - state->imgYRef) )
         {
             g_hash_table_add(di->addedByRectSel, idxAsPtr);
             g_hash_table_add(di->selection, idxAsPtr);
@@ -563,8 +569,8 @@ void di_selectionDragTo(DrawImage *di, gdouble x, gdouble y, gboolean even)
             }
             while( g_hash_table_iter_next(&iter, &key, NULL) ) {
                 gint shapeIdx = GPOINTER_TO_INT(key);
-                shape_layout(state->shapes[shapeIdx],
-                        stPrev->shapes[shapeIdx], mvX, mvY, SC_MID, FALSE);
+                shape_move(state->shapes[shapeIdx],
+                        stPrev->shapes[shapeIdx], mvX, mvY);
             }
         }
         break;
@@ -653,7 +659,7 @@ void di_setSize(DrawImage *di, gint imgWidth, gint imgHeight,
     g_hash_table_remove_all(di->selection);
 }
 
-void di_draw(const DrawImage *di, cairo_t *cr)
+void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
 {
     cairo_matrix_t matrix;
     double xBeg, yBeg;
@@ -664,6 +670,10 @@ void di_draw(const DrawImage *di, cairo_t *cr)
     if( state->baseImage != NULL ) {
         baseImgWidth = cairo_image_surface_get_width(state->baseImage);
         baseImgHeight = cairo_image_surface_get_height(state->baseImage);
+        if( zoom != 1.0 ) {
+            cairo_save(cr);
+            cairo_scale(cr, zoom, zoom);
+        }
         if( state->imgXRef > 0 && state->imgYRef + baseImgHeight > 0 ) {
             cairo_rectangle(cr, 0, 0, fmin(state->imgXRef, state->imgWidth),
                     fmin(state->imgYRef + baseImgHeight, state->imgHeight));
@@ -692,18 +702,19 @@ void di_draw(const DrawImage *di, cairo_t *cr)
         cairo_set_source_surface(cr, state->baseImage,
             state->imgXRef, state->imgYRef);
         cairo_paint(cr);
+        if( zoom != 1.0 )
+            cairo_restore(cr);
     }else{
         cairo_paint(cr);
     }
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 ) {
         cairo_save(cr);
-        cairo_translate(cr, state->imgXRef, state->imgYRef);
+        cairo_translate(cr, zoom * state->imgXRef, zoom * state->imgYRef);
     }
     for(int i = 0; i < state->shapeCount; ++i)
-        shape_draw(state->shapes[i], cr,
-                //di->curStateModification != SM_SHAPE_LAYOUT_NEW &&
-                i == di->curShapeIdx,
-                g_hash_table_contains(di->selection, GINT_TO_POINTER(i)));
+        shape_draw(state->shapes[i], cr, zoom,
+                g_hash_table_contains(di->selection, GINT_TO_POINTER(i)),
+                i == di->curShapeIdx);
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 )
         cairo_restore(cr);
 }
@@ -755,7 +766,7 @@ gboolean di_save(DrawImage *di, const char *fileName, gchar **errLoc)
         cairo_surface_t *paintImage = cairo_image_surface_create(
                 CAIRO_FORMAT_ARGB32, state->imgWidth, state->imgHeight);
         cairo_t *cr = cairo_create(paintImage);
-        di_draw(di, cr);
+        di_draw(di, cr, 1.0);
         cairo_destroy(cr);
         GdkPixbuf *pixbuf = gdk_pixbuf_get_from_surface(paintImage,
                 0, 0, state->imgWidth, state->imgHeight);

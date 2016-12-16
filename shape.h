@@ -18,8 +18,7 @@ enum ShapeCorner {
     SC_LEFT_TOP,
     SC_LEFT_BOTTOM,
     SC_RIGHT_TOP,
-    SC_RIGHT_BOTTOM,
-    SC_MID                          /* the shape middle was selected */
+    SC_RIGHT_BOTTOM
 };
 
 enum ShapeParam {
@@ -71,6 +70,7 @@ void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom,
 void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
         enum ShapeCorner, gboolean even);
 
+void shape_move(Shape *shape, const Shape *prev, gdouble x, gdouble y);
 
 ShapeType shape_getType(const Shape*);
 void shape_scale(Shape*, gdouble factor);
@@ -79,9 +79,14 @@ void shape_getParams(const Shape*, ShapeParams*);
 
 void shape_setParam(Shape*, enum ShapeParam, const ShapeParams*);
 
-enum ShapeCorner shape_hitTest(const Shape*, gdouble xBeg, gdouble yBeg,
+enum ShapeCorner shape_cornerHitTest(const Shape *shape, gdouble x,
+        gdouble y, gdouble zoom);
+
+gboolean shape_hitTest(const Shape*, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd);
-void shape_draw(Shape*, cairo_t*, gboolean isCurrent, gboolean isSelected);
+
+void shape_draw(Shape*, cairo_t*, gdouble zoom, gboolean isSelected,
+        gboolean isCurrent);
 
 Shape *shape_readFromFile(WlqInFile*, gchar **errLoc);
 gboolean shape_writeToFile(const Shape*, WlqOutFile*, gchar **errLoc);
