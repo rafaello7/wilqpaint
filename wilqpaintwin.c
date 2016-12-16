@@ -569,30 +569,43 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
     priv = wilqpaint_window_get_instance_private(win);
     if( event->button == GDK_BUTTON_PRIMARY ) {
+        priv->curAction = MA_NONE;
+        priv->selWidth = priv->selHeight = 0;
         evX = snapXValue(priv, event->x / priv->curZoom);
         evY = snapYValue(priv, event->y / priv->curZoom);
-        priv->selWidth = priv->selHeight = 0;
         if( gtk_toggle_button_get_active(priv->shapeSelect) ) {
             if( event->state & GDK_SHIFT_MASK ) {
-                priv->curAction = MA_SELECTAREA;
                 priv->selXref = evX;
                 priv->selYref = evY;
+                di_selectionFromPoint(priv->drawImage, evX, evY,
+                        event->state & GDK_CONTROL_MASK);
+                priv->curAction = MA_SELECTAREA;
             }else{
-                priv->curAction = MA_LAYOUT;
                 priv->lastEvX = evX;
                 priv->lastEvY = evY;
-            }
-            if( di_selectionFromPoint(priv->drawImage, evX, evY,
-                        priv->curAction == MA_SELECTAREA,
-                        event->state & GDK_CONTROL_MASK) )
-            {
-                di_getCurShapeParams(priv->drawImage, &shapeParams);
-                setControlsFromShapeParams(priv, &shapeParams);
+                if( di_curShapeFromPoint(priv->drawImage, evX, evY,
+                            event->state & GDK_CONTROL_MASK) )
+                {
+                    di_getCurShapeParams(priv->drawImage, &shapeParams);
+                    setControlsFromShapeParams(priv, &shapeParams);
+                    priv->curAction = MA_LAYOUT;
+                }
             }
         }else if( gtk_toggle_button_get_active(priv->shapeImageSize) ) {
             priv->moveXref = evX - di_getXRef(priv->drawImage);
             priv->moveYref = evY - di_getYRef(priv->drawImage);
             priv->curAction = MA_MOVEIMAGE;
+        }else if( event->state & GDK_CONTROL_MASK
+                || ! di_isSelectionEmpty(priv->drawImage) )
+        {
+            priv->lastEvX = event->x;
+            priv->lastEvY = event->x;
+            if( di_curShapeFromPoint(priv->drawImage, evX, evY, FALSE))
+            {
+                di_getCurShapeParams(priv->drawImage, &shapeParams);
+                setControlsFromShapeParams(priv, &shapeParams);
+                priv->curAction = MA_LAYOUT;
+            }
         }else{
             if( gtk_toggle_button_get_active(priv->shapeFreeForm) )
                 shapeType = ST_FREEFORM;
@@ -609,11 +622,12 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
             else
                 shapeType = ST_ARROW;
             getShapeParamsFromControls(priv, &shapeParams);
-            di_addShape(priv->drawImage, shapeType, evX, evY, &shapeParams);
+            di_addShape(priv->drawImage, shapeType, evX, evY,
+                    &shapeParams);
             g_free((void*)shapeParams.text);
-            priv->curAction = MA_LAYOUT;
             priv->lastEvX = evX;
             priv->lastEvY = evY;
+            priv->curAction = MA_LAYOUT;
         }
         redrawDrawingArea(priv->drawing);
         gtk_widget_grab_focus(widget);

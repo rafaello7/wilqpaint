@@ -18,7 +18,7 @@ void di_getBackgroundColor(const DrawImage*, GdkRGBA*);
 
 void di_addShape(DrawImage*, ShapeType, gdouble xRef, gdouble yRef,
         const ShapeParams*);
-gboolean di_isCurShapeSet(const DrawImage*);
+gboolean di_isSelectionEmpty(const DrawImage*);
 ShapeType di_getCurShapeType(const DrawImage*);
 void di_getCurShapeParams(const DrawImage*, ShapeParams*);
 void di_curShapeRaise(DrawImage*);
@@ -28,14 +28,14 @@ void di_undo(DrawImage*);
 void di_redo(DrawImage*);
 
 /* Hits selected shape from point.
- *
- * If the extend is TRUE, the shape is added to current selection.
- * If FALSE, the found element becomes the sole element of selection.
- *
- * The specified point is set as selection reference point.
  */
-gboolean di_selectionFromPoint(DrawImage*, gdouble x, gdouble y,
-        gboolean isRect, gboolean extend);
+gboolean di_curShapeFromPoint(DrawImage*, gdouble x, gdouble y,
+        gboolean addToSel);
+
+
+/* Begins a new rect selection
+ */
+void di_selectionFromPoint(DrawImage*, gdouble x, gdouble y, gboolean extend);
 
 
 void di_selectionFromRect(DrawImage*, gdouble x, gdouble y);

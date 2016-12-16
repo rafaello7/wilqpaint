@@ -337,9 +337,9 @@ void di_addShape(DrawImage *di, ShapeType shapeType,
     g_hash_table_remove_all(di->selection);
 }
 
-gboolean di_isCurShapeSet(const DrawImage *di)
+gboolean di_isSelectionEmpty(const DrawImage *di)
 {
-    return di->curShapeIdx >= 0;
+    return g_hash_table_size(di->selection) == 0;
 }
 
 static Shape *curShape(const DrawImage *di)
@@ -421,8 +421,43 @@ void di_redo(DrawImage *di)
     }
 }
 
-gboolean di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
-        gboolean isRect, gboolean extend)
+gboolean di_curShapeFromPoint(DrawImage *di, gdouble x, gdouble y,
+        gboolean addToSel)
+{
+    DrawImageState *state = di->states + di->stateCur;
+    int shapeIdx;
+    gpointer idxAsPtr;
+    enum ShapeCorner corner;
+
+    g_hash_table_remove_all(di->addedByRectSel);
+    if( ! addToSel )
+        g_hash_table_remove_all(di->selection);
+    di->curShapeIdx = -1;
+    di->curStateModification = SM_SELECTION_MARK;
+    di->selXRef = x;
+    di->selYRef = y;
+    shapeIdx = state->shapeCount - 1;
+    while( shapeIdx >= 0 && di->curShapeIdx == -1 ) {
+        if( (corner = shape_hitTest(state->shapes[shapeIdx],
+                x - state->imgXRef, y - state->imgYRef,
+                x - state->imgXRef, y - state->imgYRef)) != SC_NONE )
+        {
+            di->curShapeIdx = shapeIdx;
+            idxAsPtr = GINT_TO_POINTER(shapeIdx);
+            if( ! g_hash_table_contains(di->selection, idxAsPtr) )
+                g_hash_table_add(di->selection, idxAsPtr);
+            if( ! addToSel && corner != SC_MID ) {
+                di->curStateModification = SM_SHAPESIDE_MARK;
+                di->dragShapeCorner = corner;
+            }
+        }
+        --shapeIdx;
+    }
+    return di->curShapeIdx != -1;
+}
+
+void di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
+        gboolean extend)
 {
     DrawImageState *state = di->states + di->stateCur;
     int shapeIdx;
@@ -436,38 +471,17 @@ gboolean di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
     di->curStateModification = SM_SELECTION_MARK;
     di->selXRef = x;
     di->selYRef = y;
-    if( isRect ) {
-        for( shapeIdx = state->shapeCount - 1; shapeIdx >= 0; --shapeIdx ) {
-            idxAsPtr = GINT_TO_POINTER(shapeIdx);
-            if( ! g_hash_table_contains(di->selection, idxAsPtr)
-                && (corner = shape_hitTest(state->shapes[shapeIdx],
-                    x - state->imgXRef, y - state->imgYRef,
-                    x - state->imgXRef, y - state->imgYRef)) != SC_NONE)
-            {
-                g_hash_table_add(di->addedByRectSel, idxAsPtr);
-                g_hash_table_add(di->selection, idxAsPtr);
-            }
-        }
-    }else{
-        shapeIdx = state->shapeCount - 1;
-        while( shapeIdx >= 0 && di->curShapeIdx == -1 ) {
-            if( (corner = shape_hitTest(state->shapes[shapeIdx],
-                    x - state->imgXRef, y - state->imgYRef,
-                    x - state->imgXRef, y - state->imgYRef)) != SC_NONE )
-            {
-                di->curShapeIdx = shapeIdx;
-                idxAsPtr = GINT_TO_POINTER(shapeIdx);
-                if( ! g_hash_table_contains(di->selection, idxAsPtr) )
-                    g_hash_table_add(di->selection, idxAsPtr);
-                if( ! extend && corner != SC_MID ) {
-                    di->curStateModification = SM_SHAPESIDE_MARK;
-                    di->dragShapeCorner = corner;
-                }
-            }
-            --shapeIdx;
+    for( shapeIdx = state->shapeCount - 1; shapeIdx >= 0; --shapeIdx ) {
+        idxAsPtr = GINT_TO_POINTER(shapeIdx);
+        if( ! g_hash_table_contains(di->selection, idxAsPtr)
+            && (corner = shape_hitTest(state->shapes[shapeIdx],
+                x - state->imgXRef, y - state->imgYRef,
+                x - state->imgXRef, y - state->imgYRef)) != SC_NONE)
+        {
+            g_hash_table_add(di->addedByRectSel, idxAsPtr);
+            g_hash_table_add(di->selection, idxAsPtr);
         }
     }
-    return di->curShapeIdx != -1;
 }
 
 void di_selectionFromRect(DrawImage *di, gdouble x, gdouble y)
@@ -686,7 +700,9 @@ void di_draw(const DrawImage *di, cairo_t *cr)
         cairo_translate(cr, state->imgXRef, state->imgYRef);
     }
     for(int i = 0; i < state->shapeCount; ++i)
-        shape_draw(state->shapes[i], cr, i == di->curShapeIdx,
+        shape_draw(state->shapes[i], cr,
+                //di->curStateModification != SM_SHAPE_LAYOUT_NEW &&
+                i == di->curShapeIdx,
                 g_hash_table_contains(di->selection, GINT_TO_POINTER(i)));
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 )
         cairo_restore(cr);
