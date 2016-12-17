@@ -14,9 +14,10 @@ gint di_getWidth(const DrawImage*);
 gint di_getHeight(const DrawImage*);
 gdouble di_getXRef(const DrawImage*);
 gdouble di_getYRef(const DrawImage*);
+gboolean di_hasBaseImage(const DrawImage*);
 
-void di_setBackgroundColor(DrawImage*, const GdkRGBA*);
 void di_getBackgroundColor(const DrawImage*, GdkRGBA*);
+void di_setBackgroundColor(DrawImage*, const GdkRGBA*);
 
 void di_addShape(DrawImage*, ShapeType, gdouble xRef, gdouble yRef,
         const ShapeParams*, gboolean addBottom);
@@ -78,6 +79,11 @@ gboolean di_saveWLQ(DrawImage*, const char *fileName, gchar **errLoc);
 void di_markSaved(DrawImage*);
 gboolean di_isModified(const DrawImage*);
 
+void di_thresholdPreview(DrawImage*, gdouble level);
+void di_thresholdFinish(DrawImage*, gboolean commit);
+
 void di_free(DrawImage*);
+
+void di_dump(DrawImage*);
 
 #endif /* DRAWIMAGE_H */

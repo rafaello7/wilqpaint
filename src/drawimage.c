@@ -25,6 +25,7 @@ enum StateModification {
     SM_IMAGE_BACKGROUND,    /* set image background */
     SM_IMAGE_SCALE,         /* scale image */
     SM_IMAGE_SIZE,          /* change image size and position */
+    SM_IMAGE_THRESHOLD,
     SM_UNDO_REDO            /* undo/redo operation */
 };
 
@@ -49,6 +50,7 @@ struct DrawImage {
     GHashTable *selection;
     GHashTable *addedByRectSel;
     gdouble selXRef, selYRef;
+    cairo_surface_t *preview;
 };
 
 DrawImage *di_new(gint imgWidth, gint imgHeight, const GdkPixbuf *baseImage)
@@ -87,6 +89,7 @@ DrawImage *di_new(gint imgWidth, gint imgHeight, const GdkPixbuf *baseImage)
     di->addedByRectSel = g_hash_table_new(NULL, NULL);
     di->selXRef = 0;
     di->selYRef = 0;
+    di->preview = NULL;
     return di;
 }
 
@@ -249,15 +252,20 @@ gdouble di_getYRef(const DrawImage *di)
     return di->states[di->stateCur].imgYRef;
 }
 
-void di_setBackgroundColor(DrawImage *di, const GdkRGBA *color)
+gboolean di_hasBaseImage(const DrawImage *di)
 {
-    DrawImageState *state = getStateForModify(di, SM_IMAGE_BACKGROUND);
-    state->imgBgColor = *color;
+    return di->states[di->stateCur].baseImage != NULL;
 }
 
 void di_getBackgroundColor(const DrawImage *di, GdkRGBA *color)
 {
     *color = di->states[di->stateCur].imgBgColor;
+}
+
+void di_setBackgroundColor(DrawImage *di, const GdkRGBA *color)
+{
+    DrawImageState *state = getStateForModify(di, SM_IMAGE_BACKGROUND);
+    state->imgBgColor = *color;
 }
 
 void di_addShape(DrawImage *di, ShapeType shapeType,
@@ -577,8 +585,12 @@ void di_scale(DrawImage *di, gdouble factor)
     state->imgWidth = round(state->imgWidth * factor);
     state->imgHeight = round(state->imgHeight * factor);
     if( state->baseImage != NULL ) {
+        gint imgWidth = fmax(round(cairo_image_surface_get_width(
+                        state->baseImage) * factor), 1);
+        gint imgHeight = fmax(round(cairo_image_surface_get_height(
+                        state->baseImage) * factor), 1);
         cairo_surface_t *newImage = cairo_image_surface_create(
-                CAIRO_FORMAT_ARGB32, state->imgWidth, state->imgHeight);
+                CAIRO_FORMAT_ARGB32, imgWidth, imgHeight);
         cairo_t *cr = cairo_create(newImage);
         cairo_scale(cr, factor, factor);
         cairo_set_source_surface(cr, state->baseImage, 0, 0);
@@ -615,11 +627,13 @@ void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
     double xBeg, yBeg;
     const DrawImageState *state = di->states + di->stateCur;
     gint baseImgWidth, baseImgHeight;
+    cairo_surface_t *baseImage;
 
     gdk_cairo_set_source_rgba(cr, &state->imgBgColor);
     if( state->baseImage != NULL ) {
-        baseImgWidth = cairo_image_surface_get_width(state->baseImage);
-        baseImgHeight = cairo_image_surface_get_height(state->baseImage);
+        baseImage = di->preview ? di->preview : state->baseImage;
+        baseImgWidth = cairo_image_surface_get_width(baseImage);
+        baseImgHeight = cairo_image_surface_get_height(baseImage);
         if( zoom != 1.0 ) {
             cairo_save(cr);
             cairo_scale(cr, zoom, zoom);
@@ -649,7 +663,7 @@ void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
                     state->imgHeight - yBeg);
             cairo_fill(cr);
         }
-        cairo_set_source_surface(cr, state->baseImage,
+        cairo_set_source_surface(cr, baseImage,
             state->imgXRef, state->imgYRef);
         cairo_paint(cr);
         if( zoom != 1.0 )
@@ -667,6 +681,61 @@ void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
                 i == di->curShapeIdx);
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 )
         cairo_restore(cr);
+}
+
+void di_thresholdPreview(DrawImage *di, gdouble level)
+{
+    DrawImageState *state = di->states + di->stateCur;
+    int i, j, imgWidth, imgHeight, srcStride, destStride;
+    const unsigned char *src, *pxsrc;
+    unsigned char *dest, *pxdest;
+
+    if( state->baseImage == NULL )
+        return;
+    imgWidth = cairo_image_surface_get_width(state->baseImage);
+    imgHeight = cairo_image_surface_get_height(state->baseImage);
+    srcStride = cairo_image_surface_get_stride(state->baseImage);
+    cairo_surface_flush(state->baseImage);
+    src = cairo_image_surface_get_data(state->baseImage);
+    if( di->preview == NULL ) {
+        di->preview = cairo_image_surface_create(
+                CAIRO_FORMAT_ARGB32, imgWidth, imgHeight);
+    }
+    cairo_surface_flush(di->preview);
+    destStride = cairo_image_surface_get_stride(di->preview);
+    dest = cairo_image_surface_get_data(di->preview);
+    for(i = 0; i < imgHeight; ++i) {
+        pxsrc = src;
+        pxdest = dest;
+        for(j = 0; j < imgWidth; ++j) {
+            if( 3 * pxsrc[3] * (1 - level) >= pxsrc[0] + pxsrc[1] + pxsrc[2] )
+                pxdest[0] = pxdest[1] = pxdest[2] = 0;
+            else
+                pxdest[0] = pxdest[1] = pxdest[2] = pxsrc[3];
+            pxdest[3] = pxsrc[3];
+            pxsrc += 4;
+            pxdest += 4;
+        }
+        src += srcStride;
+        dest += destStride;
+    }
+    cairo_surface_mark_dirty(di->preview);
+}
+
+void di_thresholdFinish(DrawImage *di, gboolean commit)
+{
+    DrawImageState *state = di->states + di->stateCur;
+
+    if( state->baseImage == NULL || di->preview == NULL )
+        return;
+    if( commit ) {
+        state = getStateForModify(di, SM_IMAGE_THRESHOLD);
+        cairo_surface_destroy(state->baseImage);
+        state->baseImage = di->preview;
+    }else{
+        cairo_surface_destroy(di->preview);
+    }
+    di->preview = NULL;
 }
 
 gboolean di_saveWLQ(DrawImage *di, const char *fileName, gchar **errLoc)
@@ -722,6 +791,9 @@ void di_free(DrawImage *di)
     freeStates(di->states, di->stateFirst, di->stateLast);
     g_hash_table_unref(di->selection);
     g_hash_table_unref(di->addedByRectSel);
+    if( di->preview ) {
+        g_warning("di_free: dangling image preview");
+        cairo_surface_destroy(di->preview);
+    }
     g_free(di);
 }
-

@@ -51,6 +51,10 @@
                     <attribute name="label">_Scale Image</attribute>
                     <attribute name="action">win.image-scale</attribute>
                 </item>
+                <item>
+                    <attribute name="label">_Convert to Black and White</attribute>
+                    <attribute name="action">win.image-threshold</attribute>
+                </item>
             </section>
         </submenu>
         <submenu>

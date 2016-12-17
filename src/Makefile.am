@@ -1,7 +1,7 @@
 SUBDIRS = images
 
 UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui aboutdialog.ui \
-	  menubar.ui opendialog.ui savedialog.ui
+	  menubar.ui opendialog.ui savedialog.ui thresholddialog.ui
 
 IMG = images/area.png images/arrow.png images/free.png images/imagesize.png \
 	  images/line.png images/oval.png  images/rectangle.png images/select.png \
@@ -15,9 +15,11 @@ bin_PROGRAMS = wilqpaint
 wilqpaint_SOURCES = wlqpersistence.c hittest.c shapedrawing.c \
 					shape.c drawimage.c colorchooser.c opendialog.c \
 					savedialog.c sizedialog.c griddialog.c quitdialog.c \
-					aboutdialog.c imgtype.c imagefile.c wilqpaintwin.c \
+					aboutdialog.c thresholddialog.c \
+					imgtype.c imagefile.c wilqpaintwin.c \
 					wilqpaintapp.c wilqpaint.c \
 					aboutdialog.h colorchooser.h drawimage.h griddialog.h \
+					thresholddialog.h \
 					hittest.h imgtype.h imagefile.h opendialog.h \
 					quitdialog.h \
 					savedialog.h shapedrawing.h shape.h sizedialog.h \

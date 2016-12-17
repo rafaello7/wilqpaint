@@ -7,6 +7,7 @@
     <file preprocess="xml-stripblanks">savedialog.ui</file>
     <file preprocess="xml-stripblanks">quitdialog.ui</file>
     <file preprocess="xml-stripblanks">aboutdialog.ui</file>
+    <file preprocess="xml-stripblanks">thresholddialog.ui</file>
     <file preprocess="xml-stripblanks">menubar.ui</file>
     <file>images/wilqpaint.svg</file>
     <file>images/select.png</file>

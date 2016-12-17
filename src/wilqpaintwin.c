@@ -7,6 +7,7 @@
 #include "savedialog.h"
 #include "quitdialog.h"
 #include "sizedialog.h"
+#include "thresholddialog.h"
 #include "aboutdialog.h"
 #include "imgtype.h"
 #include "imagefile.h"
@@ -1113,6 +1114,38 @@ static void on_menu_image_scale(GSimpleAction *action, GVariant *parameter,
     }
 }
 
+static void onThresholdValueChange(GtkWindow *win, gdouble value)
+{
+    WilqpaintWindowPrivate *priv;
+
+    priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(win));
+    di_thresholdPreview(priv->drawImage, value);
+    redrawDrawingArea(priv->drawing);
+}
+
+static void on_menu_image_threshold(GSimpleAction *action, GVariant *parameter,
+        gpointer window)
+{
+    gdouble imgWidth, imgHeight;
+    WilqpaintWindowPrivate *priv;
+    gboolean commit;
+
+    priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
+    if( di_hasBaseImage(priv->drawImage) ) {
+        di_thresholdPreview(priv->drawImage, 0.5);
+        commit = showThresholdDialog(GTK_WINDOW(window), 0.5,
+                    onThresholdValueChange);
+        di_thresholdFinish(priv->drawImage, commit);
+        redrawDrawingArea(priv->drawing);
+    }else{
+        GtkWidget *messageDialog = gtk_message_dialog_new(
+                GTK_WINDOW(window), GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR,
+                GTK_BUTTONS_CLOSE, "Drawing does not contain base image");
+        gtk_dialog_run(GTK_DIALOG(messageDialog));
+        gtk_widget_destroy(GTK_WIDGET(messageDialog));
+    }
+}
+
 void on_backgroundColor_color_set(GtkColorButton *button, gpointer user_data)
 {
     GdkRGBA color;
@@ -1205,6 +1238,7 @@ WilqpaintWindow *wilqpaint_windowNew(GtkApplication *app, const char *fileName)
         { "edit-undo", on_menu_edit_undo, NULL, NULL, NULL },
         { "edit-redo", on_menu_edit_redo, NULL, NULL, NULL },
         { "image-scale", on_menu_image_scale, NULL, NULL, NULL },
+        { "image-threshold", on_menu_image_threshold, NULL, NULL, NULL },
         /* View */
         { "image-zoom", NULL, "s", "'1'", menu_image_set_zoom },
         { "grid-options", on_menu_grid_options, NULL, NULL, NULL },
