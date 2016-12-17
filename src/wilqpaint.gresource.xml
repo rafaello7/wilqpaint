@@ -8,21 +8,21 @@
     <file preprocess="xml-stripblanks">quitdialog.ui</file>
     <file preprocess="xml-stripblanks">aboutdialog.ui</file>
     <file preprocess="xml-stripblanks">menubar.ui</file>
-    <file>img/wilqpaint.png</file>
-    <file>img/select.png</file>
-    <file>img/imagesize.png</file>
-    <file>img/text.png</file>
-    <file>img/free.png</file>
-    <file>img/line.png</file>
-    <file>img/arrow.png</file>
-    <file>img/triangle.png</file>
-    <file>img/rectangle.png</file>
-    <file>img/oval.png</file>
-    <file>img/transparency.png</file>
-    <file>img/pin_top.png</file>
-    <file>img/pin_right.png</file>
-    <file>img/pin_bottom.png</file>
-    <file>img/pin_left.png</file>
-    <file>img/pin_center.png</file>
+    <file>images/wilqpaint.svg</file>
+    <file>images/select.png</file>
+    <file>images/imagesize.png</file>
+    <file>images/text.png</file>
+    <file>images/free.png</file>
+    <file>images/line.png</file>
+    <file>images/arrow.png</file>
+    <file>images/triangle.png</file>
+    <file>images/rectangle.png</file>
+    <file>images/oval.png</file>
+    <file>images/transparency.png</file>
+    <file>images/pin_top.png</file>
+    <file>images/pin_right.png</file>
+    <file>images/pin_bottom.png</file>
+    <file>images/pin_left.png</file>
+    <file>images/pin_center.png</file>
   </gresource>
 </gresources>

@@ -37,72 +37,72 @@
   <object class="GtkImage" id="imageArrow">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/arrow.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/arrow.png</property>
   </object>
   <object class="GtkImage" id="imageFreeForm">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/free.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/free.png</property>
   </object>
   <object class="GtkImage" id="imageLine">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/line.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/line.png</property>
   </object>
   <object class="GtkImage" id="imageOval">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/oval.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/oval.png</property>
   </object>
   <object class="GtkImage" id="imagePinBottom">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/pin_bottom.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/pin_bottom.png</property>
   </object>
   <object class="GtkImage" id="imagePinHCenter">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/pin_center.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/pin_center.png</property>
   </object>
   <object class="GtkImage" id="imagePinLeft">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/pin_left.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/pin_left.png</property>
   </object>
   <object class="GtkImage" id="imagePinRight">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/pin_right.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/pin_right.png</property>
   </object>
   <object class="GtkImage" id="imagePinTop">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/pin_top.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/pin_top.png</property>
   </object>
   <object class="GtkImage" id="imageRect">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/rectangle.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/rectangle.png</property>
   </object>
   <object class="GtkImage" id="imageSelect">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/select.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/select.png</property>
   </object>
   <object class="GtkImage" id="imageSize">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/imagesize.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/imagesize.png</property>
   </object>
   <object class="GtkImage" id="imageText">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/text.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/text.png</property>
   </object>
   <object class="GtkImage" id="imageTriangle">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="resource">/org/rafaello7/wilqpaint/img/triangle.png</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/triangle.png</property>
   </object>
   <object class="GtkTextBuffer" id="shapeTextBuffer">
     <signal name="changed" handler="on_shapeTextBuffer_changed" object="WilqpaintWindow" swapped="no"/>

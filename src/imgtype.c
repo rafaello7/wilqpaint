@@ -1,5 +1,5 @@
 #include <gtk/gtk.h>
-#include "imagetype.h"
+#include "imgtype.h"
 #include <string.h>
 
 
@@ -67,10 +67,14 @@ static void initFileTypes(void)
     }
     g_slist_free(pixbufFormats);
 
-    addFilter("PDF", "PDF",
-            g_strsplit("pdf", " ", 1), FALSE, TRUE);
-    addFilter("SVG", "SVG",
-            g_strsplit("svg", " ", 1), FALSE, TRUE);
+    if( (i = imgtype_getIdxByExt("pdf")) >= 0 )
+        gFileTypes[i].isWritable = TRUE;
+    else
+        addFilter("PDF", "PDF", g_strsplit("pdf", " ", 1), FALSE, TRUE);
+    if( (i = imgtype_getIdxByExt("svg")) >= 0 )
+        gFileTypes[i].isWritable = TRUE;
+    else
+        addFilter("SVG", "SVG", g_strsplit("svg", " ", 1), FALSE, TRUE);
 
     gAllReadableFilter = gtk_file_filter_new();
     gtk_file_filter_set_name(gAllReadableFilter, "All supported files");
@@ -127,20 +131,26 @@ int imgtype_getIdxById(const char *id)
     return -1;
 }
 
-int imgtype_getIdxByFileName(const char *fileName)
+int imgtype_getIdxByExt(const char *ext)
 {
     int i, j;
-    const char *ext;
 
     initFileTypes();
-    if( (ext = strrchr(fileName, '.')) != NULL ) {
-        ++ext;
-        for(i = 0; i < gFileTypeCount; ++i) {
-            for(j = 0; gFileTypes[i].extensions[j]; ++j) {
-                if( !strcmp(ext, gFileTypes[i].extensions[j]) )
-                    return i;
-            }
+    for(i = 0; i < gFileTypeCount; ++i) {
+        for(j = 0; gFileTypes[i].extensions[j]; ++j) {
+            if( !strcmp(ext, gFileTypes[i].extensions[j]) )
+                return i;
         }
+    }
+    return -1;
+}
+
+int imgtype_getIdxByFileName(const char *fileName)
+{
+    const char *ext;
+
+    if( (ext = strrchr(fileName, '.')) != NULL ) {
+        return imgtype_getIdxByExt(ext + 1);
     }
     return -1;
 }
@@ -166,6 +176,6 @@ GtkFileFilter *imgtype_getAllReadableFilter(void)
 gboolean imgtype_isWritableByFileName(const char *fileName)
 {
     int idx = imgtype_getIdxByFileName(fileName);
-    return imgtype_isWritable(idx);
+    return idx >= 0 ? imgtype_isWritable(idx) : FALSE;
 }
 

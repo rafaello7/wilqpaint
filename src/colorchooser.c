@@ -29,7 +29,7 @@ gboolean on_colorChooser_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     if( transparencyPatt == NULL )
         transparencyPatt = gdk_pixbuf_new_from_resource(
-                "/org/rafaello7/wilqpaint/img/transparency.png", NULL);
+                "/org/rafaello7/wilqpaint/images/transparency.png", NULL);
     context = gtk_widget_get_style_context(widget);
     gtk_render_background(context, cr, 0, 0,
             gtk_widget_get_allocated_width(widget),

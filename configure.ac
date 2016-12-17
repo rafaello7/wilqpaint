@@ -21,5 +21,5 @@ AC_CHECK_HEADERS([stdlib.h string.h])
 AC_FUNC_STRTOD
 AC_CHECK_FUNCS([atexit floor modf sqrt strcasecmp strrchr])
 
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/images/Makefile])
 AC_OUTPUT

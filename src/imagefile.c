@@ -2,7 +2,7 @@
 #include <cairo/cairo-pdf.h>
 #include <cairo/cairo-svg.h>
 #include "drawimage.h"
-#include "imagetype.h"
+#include "imgtype.h"
 #include "imagefile.h"
 #include <string.h>
 

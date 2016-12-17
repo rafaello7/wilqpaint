@@ -1,7 +1,7 @@
 #include <gtk/gtk.h>
 #include "savedialog.h"
 #include "drawimage.h"
-#include "imagetype.h"
+#include "imgtype.h"
 #include "imagefile.h"
 
 

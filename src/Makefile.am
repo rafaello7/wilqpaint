@@ -1,21 +1,24 @@
+SUBDIRS = images
+
 UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui aboutdialog.ui \
 	  menubar.ui opendialog.ui savedialog.ui
 
-IMG = img/area.png img/arrow.png        img/free.png      img/imagesize.png \
-	  img/line.png img/oval.png         img/rectangle.png img/select.png \
-	  img/text.png img/transparency.png img/triangle.png  img/wilqpaint.png \
-	  img/pin_left.png img/pin_right.png img/pin_top.png img/pin_bottom.png \
-	  img/pin_center.png
+IMG = images/area.png images/arrow.png images/free.png images/imagesize.png \
+	  images/line.png images/oval.png  images/rectangle.png images/select.png \
+	  images/text.png images/transparency.png images/triangle.png \
+	  images/pin_left.png images/pin_right.png images/pin_top.png \
+	  images/pin_bottom.png images/pin_center.png \
+	  images/wilqpaint.svg 
 
 bin_PROGRAMS = wilqpaint
 
 wilqpaint_SOURCES = wlqpersistence.c hittest.c shapedrawing.c \
 					shape.c drawimage.c colorchooser.c opendialog.c \
 					savedialog.c sizedialog.c griddialog.c quitdialog.c \
-					aboutdialog.c imagetype.c imagefile.c wilqpaintwin.c \
+					aboutdialog.c imgtype.c imagefile.c wilqpaintwin.c \
 					wilqpaintapp.c wilqpaint.c \
 					aboutdialog.h colorchooser.h drawimage.h griddialog.h \
-					hittest.h imagetype.h imagefile.h opendialog.h \
+					hittest.h imgtype.h imagefile.h opendialog.h \
 					quitdialog.h \
 					savedialog.h shapedrawing.h shape.h sizedialog.h \
 					wilqpaintapp.h wilqpaintwin.h wlqpersistence.h \
