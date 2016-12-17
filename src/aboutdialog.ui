@@ -12,7 +12,7 @@
     <property name="comments" translatable="yes">Painting program for Linux</property>
     <property name="website">http://github.com/rafaello7/wilqpaint</property>
     <property name="website_label" translatable="yes">Project home page</property>
-    <property name="logo">img/wilqpaint.svg</property>
+    <property name="logo">images/wilqpaint.svg</property>
     <property name="license_type">gpl-3-0</property>
     <child internal-child="vbox">
       <object class="GtkBox">
