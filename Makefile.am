@@ -3,6 +3,9 @@ SUBDIRS = src
 desktopdir = $(datadir)/applications
 dist_desktop_DATA = wilqpaint.desktop
 
+mimedir = $(datadir)/mime/packages
+dist_mime_DATA = wilqpaint.xml
+
 deb: dist
 	rm -rf dpkg-deb
 	mkdir dpkg-deb

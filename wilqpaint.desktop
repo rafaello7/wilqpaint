@@ -7,4 +7,4 @@ Icon=wilqpaint
 Terminal=false
 StartupNotify=true
 Categories=Graphics
-MimeType=image/bmp;image/gif;image/jpeg;image/jpg;image/png
+MimeType=image/bmp;image/gif;image/jpeg;image/jpg;image/png;image/x-wilqpaint
