@@ -69,7 +69,8 @@ static void initFileTypes(void)
 
     addFilter("PDF", "PDF",
             g_strsplit("pdf", " ", 1), FALSE, TRUE);
-
+    addFilter("SVG", "SVG",
+            g_strsplit("svg", " ", 1), FALSE, TRUE);
 
     gAllReadableFilter = gtk_file_filter_new();
     gtk_file_filter_set_name(gAllReadableFilter, "All supported files");

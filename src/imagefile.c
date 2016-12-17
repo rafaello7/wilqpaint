@@ -1,5 +1,6 @@
 #include <gtk/gtk.h>
 #include <cairo/cairo-pdf.h>
+#include <cairo/cairo-svg.h>
 #include "drawimage.h"
 #include "imagetype.h"
 #include "imagefile.h"
@@ -47,6 +48,20 @@ gboolean imgfile_save(DrawImage *di, const char *fileName, gchar **errLoc)
     }else if( nameLen >= 4 && !strcasecmp(fileName + nameLen - 4, ".pdf") ) {
         double a4Width = 8.27 * 72.0, a4Height = 11.7 * 72.0;
         cairo_surface_t *paintImage = cairo_pdf_surface_create(fileName,
+                imgWidth, imgHeight);
+        cairo_status_t status = cairo_surface_status(paintImage);
+        isOK = status == CAIRO_STATUS_SUCCESS;
+        if( isOK ) {
+            cairo_t *cr = cairo_create(paintImage);
+            di_draw(di, cr, 1.0);
+            cairo_destroy(cr);
+        }else{
+            *errLoc = g_strdup_printf("%s: %s", fileName,
+                    cairo_status_to_string(status));
+        }
+        cairo_surface_destroy(paintImage);
+    }else if( nameLen >= 4 && !strcasecmp(fileName + nameLen - 4, ".svg") ) {
+        cairo_surface_t *paintImage = cairo_svg_surface_create(fileName,
                 imgWidth, imgHeight);
         cairo_status_t status = cairo_surface_status(paintImage);
         isOK = status == CAIRO_STATUS_SUCCESS;
