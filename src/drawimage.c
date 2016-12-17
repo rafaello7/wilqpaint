@@ -87,6 +87,7 @@ DrawImage *di_new(gint imgWidth, gint imgHeight, const GdkPixbuf *baseImage)
     di->addedByRectSel = g_hash_table_new(NULL, NULL);
     di->selXRef = 0;
     di->selYRef = 0;
+    return di;
 }
 
 static void freeState(DrawImageState *state)

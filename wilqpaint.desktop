@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Wilqpaint
+Comment=Image painting program
+Exec=wilqpaint
+Icon=wilqpaint
+Terminal=false
+StartupNotify=true
+Categories=Graphics
+MimeType=image/bmp;image/gif;image/jpeg;image/jpg;image/png
