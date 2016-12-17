@@ -1,53 +1,9 @@
 #include <gtk/gtk.h>
 #include "opendialog.h"
 #include "drawimage.h"
+#include "imagetype.h"
 #include "imagefile.h"
 
-
-static void addFilters(GtkFileChooser *chooser)
-{
-    GSList *formats, *item;
-    int i;
-    char patt[20];
-    GtkFileFilter *filt;
-
-    filt = gtk_file_filter_new();
-    gtk_file_filter_set_name(filt, "All supported files");
-    gtk_file_filter_add_pixbuf_formats(filt);
-    gtk_file_filter_add_pattern(filt, "*.wlq");
-    gtk_file_chooser_add_filter(chooser, filt);
-
-    filt = gtk_file_filter_new();
-    gtk_file_filter_set_name(filt, "wilqpaint native (*.wlq)");
-    gtk_file_filter_add_pattern(filt, "*.wlq");
-    gtk_file_chooser_add_filter(chooser, filt);
-
-    formats = gdk_pixbuf_get_formats();
-    for(item = formats; item != NULL; item = g_slist_next(item)) {
-        GdkPixbufFormat *fmt = item->data;
-        gchar *name = gdk_pixbuf_format_get_description(fmt);
-        GString *itemDesc = g_string_new(name);
-        g_free(name);
-        g_string_append(itemDesc, " (");
-        gchar **extensions = gdk_pixbuf_format_get_extensions(fmt);
-        filt = gtk_file_filter_new();
-        for(i = 0; extensions[i]; ++i) {
-            snprintf(patt, sizeof(patt), "*.%s", extensions[i]);
-            gtk_file_filter_add_pattern(filt, patt);
-            if( i ) 
-                g_string_append(itemDesc, ", ");
-            g_string_append(itemDesc, "*.");
-            g_string_append(itemDesc, extensions[i]);
-        }
-        g_strfreev(extensions);
-        g_string_append(itemDesc, ")");
-        char *descStr = g_string_free(itemDesc, FALSE);
-        gtk_file_filter_set_name(filt, descStr);
-        g_free(descStr);
-        gtk_file_chooser_add_filter(chooser, filt);
-    }
-    g_slist_free(formats);
-}
 
 struct CallbackParam {
     DrawImage *di;
@@ -113,6 +69,7 @@ char *showOpenFileDialog(GtkWindow *owner, const char *curFileName)
     GtkFileChooser *chooser;
     struct CallbackParam par;
     char *result = NULL;
+    int i;
 
     builder = gtk_builder_new_from_resource(
             "/org/rafaello7/wilqpaint/opendialog.ui");
@@ -128,7 +85,13 @@ char *showOpenFileDialog(GtkWindow *owner, const char *curFileName)
         gtk_file_chooser_set_current_folder(chooser, dirname);
         g_free(dirname);
     }
-    addFilters(chooser);
+    gtk_file_chooser_add_filter(chooser,
+            g_object_ref(imgtype_getAllReadableFilter()));
+    for(i = 0; i < imgtype_count(); ++i) {
+        if( imgtype_isReadable(i) )
+            gtk_file_chooser_add_filter(chooser,
+                g_object_ref(imgtype_getFilter(i)));
+    }
     g_signal_connect(chooser, "update-preview",
             G_CALLBACK(on_updatePreview), &par);
     g_signal_connect(par.previewImage, "draw",

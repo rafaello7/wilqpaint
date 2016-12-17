@@ -12,10 +12,11 @@ bin_PROGRAMS = wilqpaint
 wilqpaint_SOURCES = wlqpersistence.c hittest.c shapedrawing.c \
 					shape.c drawimage.c colorchooser.c opendialog.c \
 					savedialog.c sizedialog.c griddialog.c quitdialog.c \
-					aboutdialog.c imagefile.c wilqpaintwin.c \
+					aboutdialog.c imagetype.c imagefile.c wilqpaintwin.c \
 					wilqpaintapp.c wilqpaint.c \
 					aboutdialog.h colorchooser.h drawimage.h griddialog.h \
-					hittest.h imagefile.h opendialog.h quitdialog.h \
+					hittest.h imagetype.h imagefile.h opendialog.h \
+					quitdialog.h \
 					savedialog.h shapedrawing.h shape.h sizedialog.h \
 					wilqpaintapp.h wilqpaintwin.h wlqpersistence.h \
 					wilqpaint.gresource.xml \

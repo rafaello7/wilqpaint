@@ -1,41 +1,10 @@
 #include <gtk/gtk.h>
 #include <cairo/cairo-pdf.h>
 #include "drawimage.h"
+#include "imagetype.h"
 #include "imagefile.h"
 #include <string.h>
 
-
-static const char *getFileFormatByExt(const char *fname)
-{
-    static char *res;
-    GSList *formats, *item;
-    const char *ext;
-    char *basename;
-    int i;
-
-    g_free(res);
-    res = NULL;
-    basename = g_path_get_basename(fname);
-    ext = strrchr(basename, '.');
-    if( ext != NULL ) {
-        ++ext;
-        formats = gdk_pixbuf_get_formats();
-        for(item = formats; item != NULL; item = g_slist_next(item)) {
-            GdkPixbufFormat *fmt = item->data;
-            if( ! gdk_pixbuf_format_is_writable(fmt) )
-                continue;
-            gchar **extensions = gdk_pixbuf_format_get_extensions(fmt);
-            for(i = 0; extensions[i] && res == NULL; ++i) {
-                if( ! strcmp(ext, extensions[i]) )
-                    res = gdk_pixbuf_format_get_name(fmt);
-            }
-            g_strfreev(extensions);
-        }
-        g_slist_free(formats);
-    }
-    g_free(basename);
-    return res;
-}
 
 DrawImage *imgfile_open(const char *fileName, gchar **errLoc,
         gboolean *isNoEntErr)
@@ -63,49 +32,12 @@ DrawImage *imgfile_open(const char *fileName, gchar **errLoc,
     return di;
 }
 
-gboolean imgfile_isFormatWritable(const char *fileName)
-{
-    GSList *formats, *item;
-    const char *ext;
-    char *basename;
-    int i;
-    gboolean res = FALSE;
-
-    basename = g_path_get_basename(fileName);
-    ext = strrchr(basename, '.');
-    if( ext != NULL ) {
-        ++ext;
-        if( !strcmp(ext, "wlq") ) {
-            res = TRUE;
-        }else{
-            formats = gdk_pixbuf_get_formats();
-            for(item = formats; item != NULL && !res;
-                    item = g_slist_next(item))
-            {
-                GdkPixbufFormat *fmt = item->data;
-                if( ! gdk_pixbuf_format_is_writable(fmt) )
-                    continue;
-                gchar **extensions = gdk_pixbuf_format_get_extensions(fmt);
-                for(i = 0; extensions[i] && ! res; ++i) {
-                    if( ! strcmp(ext, extensions[i]) )
-                        res = TRUE;
-                }
-                g_strfreev(extensions);
-            }
-            g_slist_free(formats);
-        }
-    }
-    g_free(basename);
-    return res;
-}
-
 gboolean imgfile_save(DrawImage *di, const char *fileName, gchar **errLoc)
 {
     int nameLen = strlen(fileName);
     GError *gerr = NULL;
     gboolean isOK;
-    gint imgWidth, imgHeight;
-    const char *fileFmt;
+    gint imgWidth, imgHeight, typeIdx;
 
     imgWidth = di_getWidth(di);
     imgHeight = di_getHeight(di);
@@ -117,19 +49,19 @@ gboolean imgfile_save(DrawImage *di, const char *fileName, gchar **errLoc)
         cairo_surface_t *paintImage = cairo_pdf_surface_create(fileName,
                 imgWidth, imgHeight);
         cairo_status_t status = cairo_surface_status(paintImage);
-        if( status == CAIRO_STATUS_SUCCESS ) {
+        isOK = status == CAIRO_STATUS_SUCCESS;
+        if( isOK ) {
             cairo_t *cr = cairo_create(paintImage);
             di_draw(di, cr, 1.0);
             cairo_destroy(cr);
         }else{
             *errLoc = g_strdup_printf("%s: %s", fileName,
                     cairo_status_to_string(status));
-            isOK = FALSE;
         }
         cairo_surface_destroy(paintImage);
     }else{
-        fileFmt = getFileFormatByExt(fileName);
-        if( fileFmt != NULL ) {
+        typeIdx = imgtype_getIdxByFileName(fileName);
+        if( typeIdx >= 0 && imgtype_isWritable(typeIdx) ) {
             cairo_surface_t *paintImage = cairo_image_surface_create(
                     CAIRO_FORMAT_ARGB32, imgWidth, imgHeight);
             cairo_t *cr = cairo_create(paintImage);
@@ -138,7 +70,8 @@ gboolean imgfile_save(DrawImage *di, const char *fileName, gchar **errLoc)
             GdkPixbuf *pixbuf = gdk_pixbuf_get_from_surface(paintImage,
                     0, 0, imgWidth, imgHeight);
             cairo_surface_destroy(paintImage);
-            isOK = gdk_pixbuf_save(pixbuf, fileName, fileFmt, &gerr, NULL);
+            isOK = gdk_pixbuf_save(pixbuf, fileName,
+                    imgtype_getId(typeIdx), &gerr, NULL);
             g_object_unref(G_OBJECT(pixbuf));
             if( ! isOK ) {
                 *errLoc = g_strdup(gerr->message);

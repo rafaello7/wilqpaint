@@ -8,6 +8,7 @@
 #include "quitdialog.h"
 #include "sizedialog.h"
 #include "aboutdialog.h"
+#include "imagetype.h"
 #include "imagefile.h"
 #include <string.h>
 #include <stdlib.h>
@@ -932,7 +933,7 @@ static gboolean saveChanges(WilqpaintWindow *win,
         }
     }
     if( priv->curFileName == NULL || forceChooseFileName
-            || !imgfile_isFormatWritable(priv->curFileName) )
+            || !imgtype_isWritableByFileName(priv->curFileName) )
     {
         char *fname = showSaveFileDialog(GTK_WINDOW(win), priv->curFileName);
         if( fname ) {
