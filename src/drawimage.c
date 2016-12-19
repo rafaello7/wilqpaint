@@ -669,7 +669,9 @@ void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
         if( zoom != 1.0 )
             cairo_restore(cr);
     }else{
-        cairo_paint(cr);
+        cairo_rectangle(cr, 0, 0, state->imgWidth * zoom,
+                state->imgHeight * zoom);
+        cairo_fill(cr);
     }
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 ) {
         cairo_save(cr);

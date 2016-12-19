@@ -34,6 +34,18 @@
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
+  <object class="GtkAdjustment" id="drawingHAdjustment">
+    <property name="upper">100</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+    <signal name="changed" handler="on_drawingHAdjustment_changed" object="WilqpaintWindow" swapped="no"/>
+  </object>
+  <object class="GtkAdjustment" id="drawingVAdjustment">
+    <property name="upper">100</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+    <signal name="changed" handler="on_drawingVAdjustment_changed" object="WilqpaintWindow" swapped="no"/>
+  </object>
   <object class="GtkImage" id="imageArrow">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -48,6 +60,11 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="resource">/org/rafaello7/wilqpaint/images/line.png</property>
+  </object>
+  <object class="GtkImage" id="imageLoupe">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="resource">/org/rafaello7/wilqpaint/images/loupe.png</property>
   </object>
   <object class="GtkImage" id="imageOval">
     <property name="visible">True</property>
@@ -117,68 +134,34 @@
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <child>
-          <object class="GtkScrolledWindow">
+          <object class="GtkScrolledWindow" id="drawingScrolledWin">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="hexpand">True</property>
             <property name="vexpand">True</property>
+            <property name="hadjustment">drawingHAdjustment</property>
+            <property name="vadjustment">drawingVAdjustment</property>
             <property name="shadow_type">in</property>
             <child>
-              <object class="GtkViewport">
+              <object class="GtkViewport" id="drawingViewport">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="hadjustment">drawingHAdjustment</property>
+                <property name="vadjustment">drawingVAdjustment</property>
                 <child>
-                  <object class="GtkGrid">
+                  <object class="GtkDrawingArea" id="drawing">
+                    <property name="name">drawing</property>
+                    <property name="width_request">640</property>
+                    <property name="height_request">480</property>
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="hexpand">True</property>
-                    <property name="vexpand">True</property>
-                    <child>
-                      <object class="GtkDrawingArea" id="drawing">
-                        <property name="name">drawing</property>
-                        <property name="width_request">640</property>
-                        <property name="height_request">480</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_STRUCTURE_MASK</property>
-                        <property name="halign">start</property>
-                        <property name="valign">start</property>
-                        <signal name="button-press-event" handler="on_drawing_button_press" swapped="no"/>
-                        <signal name="button-release-event" handler="on_drawing_button_release" swapped="no"/>
-                        <signal name="draw" handler="on_drawing_draw" swapped="no"/>
-                        <signal name="key-press-event" handler="on_drawing_keypress" swapped="no"/>
-                        <signal name="key-release-event" handler="on_drawing_keyrelease" swapped="no"/>
-                        <signal name="motion-notify-event" handler="on_drawing_motion" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="left_attach">0</property>
-                        <property name="top_attach">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkSeparator">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">0</property>
-                        <property name="top_attach">1</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkSeparator">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="orientation">vertical</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="top_attach">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <placeholder/>
-                    </child>
+                    <property name="can_focus">True</property>
+                    <property name="events">GDK_BUTTON1_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_STRUCTURE_MASK</property>
+                    <signal name="button-press-event" handler="on_drawing_button_press" swapped="no"/>
+                    <signal name="button-release-event" handler="on_drawing_button_release" swapped="no"/>
+                    <signal name="draw" handler="on_drawing_draw" swapped="no"/>
+                    <signal name="key-press-event" handler="on_drawing_keypress" swapped="no"/>
+                    <signal name="key-release-event" handler="on_drawing_keyrelease" swapped="no"/>
+                    <signal name="motion-notify-event" handler="on_drawing_motion" swapped="no"/>
                   </object>
                 </child>
               </object>
@@ -290,21 +273,6 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkRadioButton" id="shapeText">
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="image">imageText</property>
-                    <property name="draw_indicator">False</property>
-                    <property name="group">shapeFreeForm</property>
-                    <signal name="toggled" handler="on_shapeText_toggled" swapped="no"/>
-                  </object>
-                  <packing>
-                    <property name="left_attach">2</property>
-                    <property name="top_attach">0</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkRadioButton" id="shapeFreeForm">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
@@ -394,6 +362,42 @@
                     <property name="top_attach">2</property>
                   </packing>
                 </child>
+                <child>
+                  <object class="GtkRadioButton" id="shapeText">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="image">imageText</property>
+                    <property name="draw_indicator">False</property>
+                    <property name="group">shapeFreeForm</property>
+                    <signal name="toggled" handler="on_shapeText_toggled" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">3</property>
+                    <property name="top_attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkRadioButton" id="shapeLoupe">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="image">imageLoupe</property>
+                    <property name="draw_indicator">False</property>
+                    <property name="group">shapeFreeForm</property>
+                    <signal name="toggled" handler="on_shapeLoupe_toggled" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">2</property>
+                    <property name="top_attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
               </object>
               <packing>
                 <property name="left_attach">0</property>
@@ -412,84 +416,7 @@
                     <property name="can_focus">False</property>
                     <property name="row_spacing">2</property>
                     <property name="column_spacing">2</property>
-                    <child>
-                      <object class="GtkLabel">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="halign">end</property>
-                        <property name="label" translatable="yes">line:</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">0</property>
-                        <property name="top_attach">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkSpinButton" id="thickness">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="halign">end</property>
-                        <property name="input_purpose">number</property>
-                        <property name="adjustment">adjustmentThickness</property>
-                        <property name="snap_to_ticks">True</property>
-                        <property name="numeric">True</property>
-                        <signal name="value-changed" handler="on_thickness_value_changed" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="top_attach">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="halign">end</property>
-                        <property name="label" translatable="yes">round:</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">0</property>
-                        <property name="top_attach">1</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkSpinButton" id="round">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="halign">end</property>
-                        <property name="adjustment">adjustmentRound</property>
-                        <signal name="value-changed" handler="on_round_value_changed" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="top_attach">1</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="halign">end</property>
-                        <property name="label" translatable="yes">angle:</property>
-                      </object>
-                      <packing>
-                        <property name="left_attach">0</property>
-                        <property name="top_attach">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkSpinButton" id="angle">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="halign">end</property>
-                        <property name="adjustment">adjustmentAngle</property>
-                        <signal name="value-changed" handler="on_angle_value_changed" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="top_attach">2</property>
-                      </packing>
-                    </child>
+                    <property name="column_homogeneous">True</property>
                     <child>
                       <object class="GtkSeparator">
                         <property name="visible">True</property>
@@ -497,8 +424,7 @@
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
-                        <property name="top_attach">4</property>
-                        <property name="width">2</property>
+                        <property name="top_attach">1</property>
                       </packing>
                     </child>
                     <child>
@@ -510,13 +436,11 @@
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
-                        <property name="top_attach">7</property>
-                        <property name="width">2</property>
+                        <property name="top_attach">4</property>
                       </packing>
                     </child>
                     <child>
                       <object class="GtkScrolledWindow">
-                        <property name="width_request">160</property>
                         <property name="height_request">90</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
@@ -532,8 +456,7 @@
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
-                        <property name="top_attach">8</property>
-                        <property name="width">2</property>
+                        <property name="top_attach">5</property>
                       </packing>
                     </child>
                     <child>
@@ -548,8 +471,7 @@
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
-                        <property name="top_attach">10</property>
-                        <property name="width">2</property>
+                        <property name="top_attach">7</property>
                       </packing>
                     </child>
                     <child>
@@ -561,23 +483,7 @@
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
-                        <property name="top_attach">5</property>
-                        <property name="width">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkColorButton" id="textColor">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="tooltip_text" translatable="yes">font color - click to change</property>
-                        <property name="halign">end</property>
-                        <property name="rgba">rgb(0,0,0)</property>
-                        <signal name="color-set" handler="on_textColor_color_set" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="left_attach">1</property>
-                        <property name="top_attach">9</property>
+                        <property name="top_attach">2</property>
                       </packing>
                     </child>
                     <child>
@@ -587,36 +493,153 @@
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
-                        <property name="top_attach">6</property>
-                        <property name="width">2</property>
+                        <property name="top_attach">3</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel">
+                      <object class="GtkGrid">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="halign">start</property>
-                        <property name="valign">end</property>
-                        <property name="label" translatable="yes">font:</property>
+                        <property name="halign">center</property>
+                        <property name="column_spacing">6</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="halign">end</property>
+                            <property name="label" translatable="yes">line:</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">0</property>
+                            <property name="top_attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkSpinButton" id="thickness">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="halign">end</property>
+                            <property name="input_purpose">number</property>
+                            <property name="adjustment">adjustmentThickness</property>
+                            <property name="snap_to_ticks">True</property>
+                            <property name="numeric">True</property>
+                            <signal name="value-changed" handler="on_thickness_value_changed" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="top_attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkSpinButton" id="round">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="halign">end</property>
+                            <property name="adjustment">adjustmentRound</property>
+                            <signal name="value-changed" handler="on_round_value_changed" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="top_attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="halign">end</property>
+                            <property name="label" translatable="yes">round:</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">0</property>
+                            <property name="top_attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="halign">end</property>
+                            <property name="label" translatable="yes">angle:</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">0</property>
+                            <property name="top_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkSpinButton" id="angle">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="halign">end</property>
+                            <property name="adjustment">adjustmentAngle</property>
+                            <signal name="value-changed" handler="on_angle_value_changed" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="top_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="drawBottom">
+                            <property name="label" translatable="yes">draw bottom</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">False</property>
+                            <property name="halign">end</property>
+                            <property name="draw_indicator">True</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="top_attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
-                        <property name="top_attach">9</property>
+                        <property name="top_attach">0</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton" id="drawBottom">
-                        <property name="label" translatable="yes">draw bottom</property>
+                      <object class="GtkGrid">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">False</property>
-                        <property name="halign">end</property>
-                        <property name="draw_indicator">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="column_homogeneous">True</property>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="valign">end</property>
+                            <property name="label" translatable="yes">font:</property>
+                          </object>
+                          <packing>
+                            <property name="left_attach">0</property>
+                            <property name="top_attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkColorButton" id="textColor">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="tooltip_text" translatable="yes">font color - click to change</property>
+                            <property name="halign">end</property>
+                            <property name="rgba">rgb(0,0,0)</property>
+                            <signal name="color-set" handler="on_textColor_color_set" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="top_attach">0</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
-                        <property name="top_attach">3</property>
-                        <property name="width">2</property>
+                        <property name="top_attach">6</property>
                       </packing>
                     </child>
                   </object>
@@ -845,6 +868,18 @@
                     <property name="name">toolPageImageSize</property>
                     <property name="title" translatable="yes">page0</property>
                     <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="zoomLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">100%</property>
+                  </object>
+                  <packing>
+                    <property name="name">toolPageLoupe</property>
+                    <property name="title" translatable="yes">page0</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </object>

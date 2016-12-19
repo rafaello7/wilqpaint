@@ -400,11 +400,12 @@ static void drawTextOnShape(cairo_t *cr, gdouble zoom, Shape *shape,
     pango_font_description_free (desc);
     pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
     pango_layout_get_pixel_size(layout, &width, &height);
+    cairo_save(cr);
     cairo_clip_preserve(cr);
     gdk_cairo_set_source_rgba(cr, &shape->params.textColor);
     cairo_move_to(cr, xPaint - 0.5 * width, yPaint - 0.5 * height);
     pango_cairo_show_layout(cr, layout);
-    cairo_reset_clip(cr);
+    cairo_restore(cr);
     g_object_unref(layout);
     shape->drawnTextWidth = width / zoom;
     shape->drawnTextHeight = height / zoom;
