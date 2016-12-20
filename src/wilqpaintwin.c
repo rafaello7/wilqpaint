@@ -715,6 +715,7 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
             {
                 di_getCurShapeParams(priv->drawImage, &shapeParams);
                 setControlsFromShapeParams(priv, &shapeParams);
+                redrawDrawingArea(priv->shapePreview);
                 priv->curAction = MA_LAYOUT;
             }
         }else{
