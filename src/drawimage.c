@@ -49,7 +49,7 @@ struct DrawImage {
     guint savedStateId;
     GHashTable *selection;
     GHashTable *addedByRectSel;
-    gdouble selXRef, selYRef;
+    gdouble selXBeg, selYBeg;
     cairo_surface_t *preview;
 };
 
@@ -87,8 +87,8 @@ DrawImage *di_new(gint imgWidth, gint imgHeight, const GdkPixbuf *baseImage)
     di->savedStateId = 0;
     di->selection = g_hash_table_new(NULL, NULL);
     di->addedByRectSel = g_hash_table_new(NULL, NULL);
-    di->selXRef = 0;
-    di->selYRef = 0;
+    di->selXBeg = 0;
+    di->selYBeg = 0;
     di->preview = NULL;
     return di;
 }
@@ -289,8 +289,8 @@ void di_addShape(DrawImage *di, ShapeType shapeType,
         }
     }
     state->shapes[di->curShapeIdx] = shape;
-    di->selXRef = xRef;
-    di->selYRef = yRef;
+    di->selXBeg = xRef;
+    di->selYBeg = yRef;
     g_hash_table_remove_all(di->selection);
 }
 
@@ -391,8 +391,8 @@ gboolean di_curShapeFromPoint(DrawImage *di, gdouble x, gdouble y,
         g_hash_table_remove_all(di->selection);
     di->curShapeIdx = -1;
     di->curStateModification = SM_SELECTION_MARK;
-    di->selXRef = x;
-    di->selYRef = y;
+    di->selXBeg = x;
+    di->selYBeg = y;
     shapeIdx = state->shapeCount - 1;
     while( shapeIdx >= 0 && di->curShapeIdx == -1 ) {
         if( (corner = shape_cornerHitTest(state->shapes[shapeIdx],
@@ -420,6 +420,8 @@ gboolean di_curShapeFromPoint(DrawImage *di, gdouble x, gdouble y,
     return di->curShapeIdx != -1;
 }
 
+/* Start of rectangle area selection.
+ */
 void di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
         gboolean extend)
 {
@@ -432,8 +434,8 @@ void di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
         g_hash_table_remove_all(di->selection);
     di->curShapeIdx = -1;
     di->curStateModification = SM_SELECTION_MARK;
-    di->selXRef = x;
-    di->selYRef = y;
+    di->selXBeg = x;
+    di->selYBeg = y;
     for( shapeIdx = state->shapeCount - 1; shapeIdx >= 0; --shapeIdx ) {
         idxAsPtr = GINT_TO_POINTER(shapeIdx);
         if( ! g_hash_table_contains(di->selection, idxAsPtr)
@@ -447,6 +449,8 @@ void di_selectionFromPoint(DrawImage *di, gdouble x, gdouble y,
     }
 }
 
+/* Extends rectangle area selection started by di_selectionFromPoint.
+ */
 void di_selectionFromRect(DrawImage *di, gdouble x, gdouble y)
 {
     DrawImageState *state = di->states + di->stateCur;
@@ -463,7 +467,7 @@ void di_selectionFromRect(DrawImage *di, gdouble x, gdouble y)
         idxAsPtr = GINT_TO_POINTER(shapeIdx);
         if( ! g_hash_table_contains(di->selection, idxAsPtr)
             && shape_hitTest(state->shapes[shapeIdx],
-                di->selXRef - state->imgXRef, di->selYRef - state->imgYRef,
+                di->selXBeg - state->imgXRef, di->selYBeg - state->imgYRef,
                 x - state->imgXRef, y - state->imgYRef) )
         {
             g_hash_table_add(di->addedByRectSel, idxAsPtr);
@@ -507,7 +511,7 @@ void di_selectionDragTo(DrawImage *di, gdouble x, gdouble y, gboolean even)
         stPrev = di->states + (di->stateCur == 0 ? UNDO_MAX : di->stateCur) - 1;
         shape_layout(state->shapes[di->curShapeIdx],
                 stPrev->shapes[di->curShapeIdx],
-                x - di->selXRef, y - di->selYRef, di->dragShapeCorner, even);
+                x - di->selXBeg, y - di->selYBeg, di->dragShapeCorner, even);
         break;
     case SM_SELECTION_MARK:
     case SM_SEL_DRAG:
@@ -516,8 +520,8 @@ void di_selectionDragTo(DrawImage *di, gdouble x, gdouble y, gboolean even)
             stPrev = di->states
                     + (di->stateCur == 0 ? UNDO_MAX : di->stateCur) - 1;
             g_hash_table_iter_init(&iter, di->selection);
-            mvX = x - di->selXRef;
-            mvY = y - di->selYRef;
+            mvX = x - di->selXBeg;
+            mvY = y - di->selYBeg;
             if( even ) {
                 if( fabs(mvX) >= fabs(mvY) )
                     mvY = 0;

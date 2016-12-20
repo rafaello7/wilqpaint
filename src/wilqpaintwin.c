@@ -37,10 +37,11 @@ typedef struct {
     MouseAction curAction;
 
     /* MA_LAYOUT */
+    gdouble snapXoffset, snapYoffset;
     gdouble lastEvX, lastEvY;
 
     /* selection - MA_SELECTAREA */
-    gdouble selXref, selYref, selWidth, selHeight;
+    gdouble selXbeg, selYbeg, selWidth, selHeight;
 
     /* MA_MOVEIMAGE */
     gdouble moveXref, moveYref;
@@ -239,8 +240,8 @@ void adjustDrawingSize(WilqpaintWindowPrivate *priv,
     priv->selWidth = priv->selHeight = 0;
     imgWidth = di_getWidth(priv->drawImage);
     imgHeight = di_getHeight(priv->drawImage);
-    gtk_widget_set_size_request(priv->drawing, imgWidth * priv->curZoom,
-            imgHeight * priv->curZoom);
+    gtk_widget_set_size_request(priv->drawing, ceil(imgWidth * priv->curZoom),
+            ceil(imgHeight * priv->curZoom));
     if( adjustImageSizeSpins ) {
         ++priv->shapeControlsSetInProgress;
         gtk_spin_button_set_value(priv->spinImageWidth, imgWidth);
@@ -586,16 +587,44 @@ static void setZoom(WilqpaintWindow *win, gdouble zoom)
     g_action_change_state(zoomAction, g_variant_new_string(zoomStr));
 }
 
-static gdouble snapXValue(WilqpaintWindowPrivate *priv, gdouble val)
+enum MapDrawingPoint {
+    MDP_COMPENSATE_OFFSET,
+    MDP_TO_DRAWIMAGE,
+    MDP_TO_DRAWIMAGE_SNAPPED
+};
+
+static gdouble mapXValue(WilqpaintWindowPrivate *priv, gdouble val,
+        enum MapDrawingPoint mdp)
 {
-    return grid_isSnapTo(priv->gopts) ?
-        grid_getSnapXValue(priv->gopts, val) : val;
+    gdouble imgWidth;
+    gint drawingWidth;
+
+    imgWidth = di_getWidth(priv->drawImage) * priv->curZoom;
+    drawingWidth = gtk_widget_get_allocated_width(priv->drawing);
+    if( drawingWidth > imgWidth )
+        val -= floor(0.5 * (drawingWidth - imgWidth));
+    if( mdp != MDP_COMPENSATE_OFFSET )
+        val /= priv->curZoom;
+    if( mdp == MDP_TO_DRAWIMAGE_SNAPPED )
+        val = grid_getSnapXValue(priv->gopts, val, TRUE);
+    return val;
 }
 
-static gdouble snapYValue(WilqpaintWindowPrivate *priv, gdouble val)
+static gdouble mapYValue(WilqpaintWindowPrivate *priv, gdouble val,
+        enum MapDrawingPoint mdp)
 {
-    return grid_isSnapTo(priv->gopts) ?
-        grid_getSnapYValue(priv->gopts, val) : val;
+    gdouble imgHeight;
+    gint drawingHeight;
+
+    imgHeight = di_getHeight(priv->drawImage) * priv->curZoom;
+    drawingHeight = gtk_widget_get_allocated_height(priv->drawing);
+    if( drawingHeight > imgHeight )
+        val -= floor(0.5 * (drawingHeight - imgHeight));
+    if( mdp != MDP_COMPENSATE_OFFSET )
+        val /= priv->curZoom;
+    if( mdp == MDP_TO_DRAWIMAGE_SNAPPED )
+        val = grid_getSnapYValue(priv->gopts, val, TRUE);
+    return val;
 }
 
 gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
@@ -613,6 +642,8 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
     priv->selWidth = priv->selHeight = 0;
     if( gtk_toggle_button_get_active(priv->shapeLoupe) ) {
         if( event->button == 1 || event->button == 3 ) {
+            evX = mapXValue(priv, event->x, MDP_COMPENSATE_OFFSET);
+            evY = mapYValue(priv, event->y, MDP_COMPENSATE_OFFSET);
             gdouble zoomFact = 1.0;
             if( event->button == 1 ) {
                 priv->curAction = MA_LOUPE;
@@ -622,57 +653,73 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
                 if( priv->curZoom >= 0.0625 )
                     zoomFact = 0.5;
             }
-            priv->loupeXFixed = event->x * zoomFact;
-            priv->loupeYFixed = event->y * zoomFact;
+            priv->loupeXFixed = evX * zoomFact;
+            priv->loupeYFixed = evY * zoomFact;
             if( zoomFact != 1.0 ) {
                 adjX = gtk_adjustment_get_value(gtk_scrollable_get_hadjustment(
                             GTK_SCROLLABLE(priv->drawingViewport)));
                 adjY = gtk_adjustment_get_value(gtk_scrollable_get_vadjustment(
                             GTK_SCROLLABLE(priv->drawingViewport)));
-                priv->drawingHAdjNewX = fmax(event->x * (zoomFact-1)+adjX, 0.0);
-                priv->drawingVAdjNewY = fmax(event->y * (zoomFact-1)+adjY, 0.0);
+                priv->drawingHAdjNewX = fmax(evX * zoomFact + adjX - event->x,
+                        0.0);
+                priv->drawingVAdjNewY = fmax(evY * zoomFact + adjY - event->y,
+                        0.0);
                 setZoom(win, priv->curZoom * zoomFact);
             }
         }
     }else if( event->button == GDK_BUTTON_PRIMARY ) {
-        evX = snapXValue(priv, event->x / priv->curZoom);
-        evY = snapYValue(priv, event->y / priv->curZoom);
         if( gtk_toggle_button_get_active(priv->shapeSelect) ) {
+            evX = mapXValue(priv, event->x, MDP_TO_DRAWIMAGE);
+            evY = mapYValue(priv, event->y, MDP_TO_DRAWIMAGE);
             if( event->state & GDK_SHIFT_MASK ) {
-                priv->selXref = evX;
-                priv->selYref = evY;
+                priv->selXbeg = evX;
+                priv->selYbeg = evY;
                 di_selectionFromPoint(priv->drawImage, evX, evY,
                         event->state & GDK_CONTROL_MASK);
                 priv->curAction = MA_SELECTAREA;
             }else{
                 priv->lastEvX = evX;
                 priv->lastEvY = evY;
+                priv->snapXoffset = evX
+                    - grid_getSnapXValue(priv->gopts, evX, TRUE);
+                priv->snapYoffset = evY
+                    - grid_getSnapYValue(priv->gopts, evY, TRUE);
                 if( di_curShapeFromPoint(priv->drawImage, evX, evY,
                             priv->curZoom, event->state & GDK_CONTROL_MASK) )
                 {
                     di_getCurShapeParams(priv->drawImage, &shapeParams);
                     setControlsFromShapeParams(priv, &shapeParams);
-                    priv->curAction = MA_LAYOUT;
                 }
+                if( ! di_isSelectionEmpty(priv->drawImage) )
+                    priv->curAction = MA_LAYOUT;
             }
         }else if( gtk_toggle_button_get_active(priv->shapeImageSize) ) {
+            evX = mapXValue(priv, event->x, MDP_TO_DRAWIMAGE_SNAPPED);
+            evY = mapYValue(priv, event->y, MDP_TO_DRAWIMAGE_SNAPPED);
             priv->moveXref = evX - di_getXRef(priv->drawImage);
             priv->moveYref = evY - di_getYRef(priv->drawImage);
             priv->curAction = MA_MOVEIMAGE;
-        }else if( gtk_toggle_button_get_active(priv->shapeLoupe) ) {
         }else if( event->state & GDK_CONTROL_MASK
                 || ! di_isSelectionEmpty(priv->drawImage) )
         {
-            priv->lastEvX = event->x;
-            priv->lastEvY = event->x;
-            if( di_curShapeFromPoint(priv->drawImage, evX, evY, priv->curZoom,
-                        FALSE))
+            evX = mapXValue(priv, event->x, MDP_TO_DRAWIMAGE);
+            evY = mapYValue(priv, event->y, MDP_TO_DRAWIMAGE);
+            priv->lastEvX = evX;
+            priv->lastEvY = evY;
+            priv->snapXoffset = evX
+                - grid_getSnapXValue(priv->gopts, evX, TRUE);
+            priv->snapYoffset = evY
+                - grid_getSnapYValue(priv->gopts, evY, TRUE);
+            if( di_curShapeFromPoint(priv->drawImage, evX, evY,
+                        priv->curZoom, FALSE))
             {
                 di_getCurShapeParams(priv->drawImage, &shapeParams);
                 setControlsFromShapeParams(priv, &shapeParams);
                 priv->curAction = MA_LAYOUT;
             }
         }else{
+            evX = mapXValue(priv, event->x, MDP_TO_DRAWIMAGE_SNAPPED);
+            evY = mapYValue(priv, event->y, MDP_TO_DRAWIMAGE_SNAPPED);
             if( gtk_toggle_button_get_active(priv->shapeFreeForm) )
                 shapeType = ST_FREEFORM;
             else if( gtk_toggle_button_get_active(priv->shapeLine) )
@@ -693,6 +740,7 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
             g_free((void*)shapeParams.text);
             priv->lastEvX = evX;
             priv->lastEvY = evY;
+            priv->snapXoffset = priv->snapYoffset = 0;
             priv->curAction = MA_LAYOUT;
         }
         redrawDrawingArea(priv->drawing);
@@ -710,37 +758,47 @@ gboolean on_drawing_motion(GtkWidget *widget, GdkEventMotion *event,
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
     priv = wilqpaint_window_get_instance_private(win);
-    evX = snapXValue(priv, event->x / priv->curZoom);
-    evY = snapYValue(priv, event->y / priv->curZoom);
 
     if( event->state & GDK_BUTTON1_MASK ) {
         switch( priv->curAction ) {
         case MA_LAYOUT:
+            evX = grid_getSnapXValue(priv->gopts,
+                    mapXValue(priv, event->x, MDP_TO_DRAWIMAGE)
+                    - priv->snapXoffset, TRUE) + priv->snapXoffset;
+            evY = grid_getSnapYValue(priv->gopts,
+                    mapYValue(priv, event->y, MDP_TO_DRAWIMAGE)
+                    - priv->snapYoffset, TRUE) + priv->snapYoffset;
             di_selectionDragTo(priv->drawImage, evX, evY,
                     event->state & GDK_SHIFT_MASK);
             priv->lastEvX = evX;
             priv->lastEvY = evY;
             break;
         case MA_MOVEIMAGE:
+            evX = mapXValue(priv, event->x, MDP_TO_DRAWIMAGE_SNAPPED);
+            evY = mapYValue(priv, event->y, MDP_TO_DRAWIMAGE_SNAPPED);
             di_moveTo(priv->drawImage, evX - priv->moveXref,
                     evY - priv->moveYref);
             break;
         case MA_SELECTAREA:
-            priv->selWidth = evX - priv->selXref;
-            priv->selHeight = evY - priv->selYref;
+            evX = mapXValue(priv, event->x, MDP_TO_DRAWIMAGE);
+            evY = mapYValue(priv, event->y, MDP_TO_DRAWIMAGE);
+            priv->selWidth = evX - priv->selXbeg;
+            priv->selHeight = evY - priv->selYbeg;
             di_selectionFromRect(priv->drawImage, evX, evY);
             break;
         case MA_LOUPE:
-            if( priv->loupeXFixed != event->x ) {
+            evX = mapXValue(priv, event->x, MDP_COMPENSATE_OFFSET);
+            evY = mapYValue(priv, event->y, MDP_COMPENSATE_OFFSET);
+            if( priv->loupeXFixed != evX ) {
                 GtkAdjustment *adj = gtk_scrollable_get_hadjustment(
                         GTK_SCROLLABLE(priv->drawingViewport));
-                gtk_adjustment_set_value(adj, priv->loupeXFixed - event->x
+                gtk_adjustment_set_value(adj, priv->loupeXFixed - evX
                         + gtk_adjustment_get_value(adj));
             }
             if( priv->loupeYFixed != event->y ) {
                 GtkAdjustment *adj = gtk_scrollable_get_vadjustment(
                         GTK_SCROLLABLE(priv->drawingViewport));
-                gtk_adjustment_set_value(adj, priv->loupeYFixed - event->y
+                gtk_adjustment_set_value(adj, priv->loupeYFixed - evY
                         + gtk_adjustment_get_value(adj));
             }
             break;
@@ -813,29 +871,28 @@ gboolean on_drawing_keyrelease(GtkWidget *widget, GdkEventKey *event,
 
 gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
-    gdouble scale, gridXOffset, gridYOffset, dashes[2];
-    gint i, imgWidth, imgHeight;
+    gdouble i, scale, imgWidth, imgHeight, gridXOffset, gridYOffset, dashes[2];
+    gint drawingWidth, drawingHeight;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(widget)));
     priv = wilqpaint_window_get_instance_private(win);
 
-    imgWidth = di_getWidth(priv->drawImage);
-    imgHeight = di_getHeight(priv->drawImage);
-    cairo_move_to(cr, 0, imgHeight * priv->curZoom);
-    cairo_line_to(cr, imgWidth * priv->curZoom, imgHeight * priv->curZoom);
-    cairo_line_to(cr, imgWidth * priv->curZoom, 0);
-    cairo_line_to(cr, imgWidth * priv->curZoom + 1, 0);
-    cairo_line_to(cr, imgWidth * priv->curZoom + 1,
-            imgHeight * priv->curZoom + 1);
-    cairo_line_to(cr, 0, imgHeight * priv->curZoom + 1);
-    cairo_close_path(cr);
-    cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
-    cairo_fill(cr);
-    cairo_rectangle(cr, 0, 0, imgWidth * priv->curZoom,
-            imgHeight * priv->curZoom);
-    cairo_clip(cr);
+    imgWidth = di_getWidth(priv->drawImage) * priv->curZoom;
+    imgHeight = di_getHeight(priv->drawImage) * priv->curZoom;
+    drawingWidth = gtk_widget_get_allocated_width(priv->drawing);
+    drawingHeight = gtk_widget_get_allocated_height(priv->drawing);
+    if( drawingWidth > imgWidth || drawingHeight > imgHeight ) {
+        cairo_translate(cr,
+                fmax(floor(0.5 * (drawingWidth - imgWidth)), 0.0),
+                fmax(floor(0.5 * (drawingHeight - imgHeight)), 0.0));
+        cairo_rectangle(cr, 0, 0, imgWidth, imgHeight);
+        cairo_set_line_width(cr, 2);
+        cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+        cairo_stroke_preserve(cr);
+        cairo_clip(cr);
+    }
     di_draw(priv->drawImage, cr, priv->curZoom);
     scale = grid_getScale(priv->gopts) * priv->curZoom;
     if( grid_isShow(priv->gopts) && scale > 2 ) {
@@ -853,15 +910,15 @@ gboolean on_drawing_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
             cairo_set_dash(cr, dashes, 2, scale - gridYOffset + 1);
         }
         cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
-        for(i = gridXOffset; i <= imgWidth * priv->curZoom; i += scale) {
+        for(i = gridXOffset; i <= imgWidth; i += scale) {
             cairo_move_to(cr, i, 0);
-            cairo_line_to(cr, i, imgHeight * priv->curZoom);
+            cairo_line_to(cr, i, imgHeight);
             cairo_stroke(cr);
         }
     }
     if( priv->selWidth != 0 || priv->selHeight != 0 ) {
-        cairo_rectangle(cr, priv->selXref * priv->curZoom,
-                priv->selYref * priv->curZoom,
+        cairo_rectangle(cr, priv->selXbeg * priv->curZoom,
+                priv->selYbeg * priv->curZoom,
                 priv->selWidth * priv->curZoom,
                 priv->selHeight * priv->curZoom);
         cairo_set_line_width(cr, 1);
@@ -1268,8 +1325,8 @@ static void menu_image_set_zoom(GSimpleAction *action, GVariant *state,
     sprintf(zoomStr, "%g%%", 100.0 * priv->curZoom);
     gtk_label_set_text(priv->zoomLabel, zoomStr);
     gtk_widget_set_size_request(priv->drawing,
-            di_getWidth(priv->drawImage) * priv->curZoom,
-            di_getHeight(priv->drawImage) * priv->curZoom);
+            ceil(di_getWidth(priv->drawImage) * priv->curZoom),
+            ceil(di_getHeight(priv->drawImage) * priv->curZoom));
 }
 
 static void onGridDialogChange(GtkWindow *window)

@@ -12,8 +12,10 @@ void grid_showDialog(GridOptions*, GtkWindow *owner,
 gdouble grid_getScale(GridOptions*);
 gdouble grid_getXOffset(GridOptions*);
 gdouble grid_getYOffset(GridOptions*);
-gdouble grid_getSnapXValue(GridOptions*, gdouble);
-gdouble grid_getSnapYValue(GridOptions*, gdouble);
+gdouble grid_getSnapXValue(GridOptions*, gdouble,
+        gboolean onlyWhenSnapIsInEffect);
+gdouble grid_getSnapYValue(GridOptions*, gdouble,
+        gboolean onlyWhenSnapIsInEffect);
 gboolean grid_isShow(GridOptions*);
 void grid_setIsShow(GridOptions*, gboolean);
 gboolean grid_isSnapTo(GridOptions*);

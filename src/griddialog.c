@@ -146,14 +146,20 @@ gdouble grid_getYOffset(GridOptions *opts)
     return opts->gridYOffset;
 }
 
-gdouble grid_getSnapXValue(GridOptions *opts, gdouble val)
+gdouble grid_getSnapXValue(GridOptions *opts, gdouble val,
+        gboolean onlyWhenSnapIsInEffect)
 {
+    if( ! opts->snapToGrid )
+        return val;
     return floor((val + 0.5 * opts->gridScale - opts->gridXOffset)
             / opts->gridScale) * opts->gridScale + opts->gridXOffset;
 }
 
-gdouble grid_getSnapYValue(GridOptions *opts, gdouble val)
+gdouble grid_getSnapYValue(GridOptions *opts, gdouble val,
+        gboolean onlyWhenSnapIsInEffect)
 {
+    if( ! opts->snapToGrid )
+        return val;
     return floor((val + 0.5 * opts->gridScale - opts->gridYOffset)
             / opts->gridScale) * opts->gridScale + opts->gridYOffset;
 }
