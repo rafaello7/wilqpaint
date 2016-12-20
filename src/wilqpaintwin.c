@@ -55,7 +55,7 @@ typedef struct {
 
     /* controls */
     GtkWidget       *drawing;
-    GtkAdjustment   *drawingHAdjustment, *drawingVAdjustment;
+    GtkViewport     *drawingViewport;
     GtkStack        *shapeTools;
     GtkSpinButton   *thickness;
     GtkSpinButton   *angle;
@@ -138,9 +138,7 @@ static void wilqpaint_window_class_init(WilqpaintWindowClass *wilqpaintClass)
     gtk_widget_class_bind_template_child_private(widgetClass,
             WilqpaintWindow, drawing);
     gtk_widget_class_bind_template_child_private(widgetClass,
-            WilqpaintWindow, drawingHAdjustment);
-    gtk_widget_class_bind_template_child_private(widgetClass,
-            WilqpaintWindow, drawingVAdjustment);
+            WilqpaintWindow, drawingViewport);
     gtk_widget_class_bind_template_child_private(widgetClass,
             WilqpaintWindow, shapeTools);
     gtk_widget_class_bind_template_child_private(widgetClass,
@@ -605,7 +603,7 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
 {
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
-    gdouble evX, evY;
+    gdouble evX, evY, xMid, yMid, adjX, adjY;
     ShapeType shapeType;
     ShapeParams shapeParams;
 
@@ -615,25 +613,32 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
     priv->selWidth = priv->selHeight = 0;
     if( gtk_toggle_button_get_active(priv->shapeLoupe) ) {
         if( event->button == 1 || event->button == 3 ) {
-            gdouble newZoom = priv->curZoom;
+            gdouble zoomFact = 1.0;
             if( event->button == 1 ) {
                 priv->curAction = MA_LOUPE;
-                priv->loupeXFixed = event->x / priv->curZoom;
-                priv->loupeYFixed = event->y / priv->curZoom;
                 if( event->type == GDK_2BUTTON_PRESS && priv->curZoom <= 16 )
-                    newZoom *= 2;
+                    zoomFact = 2;
             }else{
                 if( priv->curZoom >= 0.25 )
-                    newZoom *= 0.5;
+                    zoomFact = 0.5;
             }
-            if( newZoom != priv->curZoom ) {
-                priv->drawingHAdjNewX = fmax(priv->loupeXFixed * newZoom
-                        - event->x + gtk_adjustment_get_value(
-                            priv->drawingHAdjustment), 0.0);
-                priv->drawingVAdjNewY = fmax(priv->loupeYFixed * newZoom
-                        - event->y + gtk_adjustment_get_value(
-                            priv->drawingVAdjustment), 0.0);
-                setZoom(win, newZoom);
+            if( zoomFact == 1.0 ) {
+                priv->loupeXFixed = event->x;
+                priv->loupeYFixed = event->y;
+            }else{
+                adjX = gtk_adjustment_get_value(gtk_scrollable_get_hadjustment(
+                            GTK_SCROLLABLE(priv->drawingViewport)));
+                adjY = gtk_adjustment_get_value(gtk_scrollable_get_vadjustment(
+                            GTK_SCROLLABLE(priv->drawingViewport)));
+                xMid = 0.5 * gtk_widget_get_allocated_width(
+                        GTK_WIDGET(priv->drawingViewport));
+                yMid = 0.5 * gtk_widget_get_allocated_height(
+                        GTK_WIDGET(priv->drawingViewport));
+                priv->loupeXFixed = event->x * (1 + zoomFact) - xMid - adjX;
+                priv->loupeYFixed = event->y * (1 + zoomFact) - yMid - adjY;
+                priv->drawingHAdjNewX = fmax(event->x * zoomFact - xMid, 0.0);
+                priv->drawingVAdjNewY = fmax(event->y * zoomFact - yMid, 0.0);
+                setZoom(win, priv->curZoom * zoomFact);
             }
         }
     }else if( event->button == GDK_BUTTON_PRIMARY ) {
@@ -733,15 +738,17 @@ gboolean on_drawing_motion(GtkWidget *widget, GdkEventMotion *event,
             di_selectionFromRect(priv->drawImage, evX, evY);
             break;
         case MA_LOUPE:
-            if( priv->loupeXFixed * priv->curZoom != event->x ) {
-                gtk_adjustment_set_value(priv->drawingHAdjustment,
-                        priv->loupeXFixed * priv->curZoom - event->x
-                        + gtk_adjustment_get_value(priv->drawingHAdjustment));
+            if( priv->loupeXFixed != event->x ) {
+                GtkAdjustment *adj = gtk_scrollable_get_hadjustment(
+                        GTK_SCROLLABLE(priv->drawingViewport));
+                gtk_adjustment_set_value(adj, priv->loupeXFixed - event->x
+                        + gtk_adjustment_get_value(adj));
             }
-            if( priv->loupeYFixed * priv->curZoom != event->y ) {
-                gtk_adjustment_set_value(priv->drawingVAdjustment,
-                        priv->loupeYFixed * priv->curZoom - event->y
-                        + gtk_adjustment_get_value(priv->drawingVAdjustment));
+            if( priv->loupeYFixed != event->y ) {
+                GtkAdjustment *adj = gtk_scrollable_get_vadjustment(
+                        GTK_SCROLLABLE(priv->drawingViewport));
+                gtk_adjustment_set_value(adj, priv->loupeYFixed - event->y
+                        + gtk_adjustment_get_value(adj));
             }
             break;
         }
