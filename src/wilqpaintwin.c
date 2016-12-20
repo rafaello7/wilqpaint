@@ -603,7 +603,7 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
 {
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
-    gdouble evX, evY, xMid, yMid, adjX, adjY;
+    gdouble evX, evY, adjX, adjY;
     ShapeType shapeType;
     ShapeParams shapeParams;
 
@@ -619,25 +619,18 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
                 if( event->type == GDK_2BUTTON_PRESS && priv->curZoom <= 16 )
                     zoomFact = 2;
             }else{
-                if( priv->curZoom >= 0.25 )
+                if( priv->curZoom >= 0.0625 )
                     zoomFact = 0.5;
             }
-            if( zoomFact == 1.0 ) {
-                priv->loupeXFixed = event->x;
-                priv->loupeYFixed = event->y;
-            }else{
+            priv->loupeXFixed = event->x * zoomFact;
+            priv->loupeYFixed = event->y * zoomFact;
+            if( zoomFact != 1.0 ) {
                 adjX = gtk_adjustment_get_value(gtk_scrollable_get_hadjustment(
                             GTK_SCROLLABLE(priv->drawingViewport)));
                 adjY = gtk_adjustment_get_value(gtk_scrollable_get_vadjustment(
                             GTK_SCROLLABLE(priv->drawingViewport)));
-                xMid = 0.5 * gtk_widget_get_allocated_width(
-                        GTK_WIDGET(priv->drawingViewport));
-                yMid = 0.5 * gtk_widget_get_allocated_height(
-                        GTK_WIDGET(priv->drawingViewport));
-                priv->loupeXFixed = event->x * (1 + zoomFact) - xMid - adjX;
-                priv->loupeYFixed = event->y * (1 + zoomFact) - yMid - adjY;
-                priv->drawingHAdjNewX = fmax(event->x * zoomFact - xMid, 0.0);
-                priv->drawingVAdjNewY = fmax(event->y * zoomFact - yMid, 0.0);
+                priv->drawingHAdjNewX = fmax(event->x * (zoomFact-1)+adjX, 0.0);
+                priv->drawingVAdjNewY = fmax(event->y * (zoomFact-1)+adjY, 0.0);
                 setZoom(win, priv->curZoom * zoomFact);
             }
         }
@@ -1272,7 +1265,7 @@ static void menu_image_set_zoom(GSimpleAction *action, GVariant *state,
     priv->curZoom = strtod(g_variant_get_string(state, NULL), NULL);
     g_simple_action_set_state(action, state);
     priv->selWidth = priv->selHeight = 0;
-    sprintf(zoomStr, "x%g", priv->curZoom);
+    sprintf(zoomStr, "%g%%", 100.0 * priv->curZoom);
     gtk_label_set_text(priv->zoomLabel, zoomStr);
     gtk_widget_set_size_request(priv->drawing,
             di_getWidth(priv->drawImage) * priv->curZoom,
