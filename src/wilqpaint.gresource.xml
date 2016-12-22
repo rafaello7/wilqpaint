@@ -26,5 +26,7 @@
     <file>images/pin_bottom.png</file>
     <file>images/pin_left.png</file>
     <file>images/pin_center.png</file>
+    <file>images/minus.png</file>
+    <file>images/plus.png</file>
   </gresource>
 </gresources>

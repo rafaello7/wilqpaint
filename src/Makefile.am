@@ -6,7 +6,7 @@ UI =  wilqpaint.ui sizedialog.ui griddialog.ui quitdialog.ui aboutdialog.ui \
 IMG = images/area.png images/arrow.png images/free.png images/imagesize.png \
 	  images/line.png images/oval.png  images/rectangle.png images/select.png \
 	  images/text.png images/transparency.png images/triangle.png \
-	  images/loupe.png \
+	  images/loupe.png images/minus.png images/plus.png \
 	  images/pin_left.png images/pin_right.png images/pin_top.png \
 	  images/pin_bottom.png images/pin_center.png \
 	  images/wilqpaint.svg 

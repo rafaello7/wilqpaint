@@ -669,6 +669,7 @@ void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
         }
         cairo_set_source_surface(cr, baseImage,
             state->imgXRef, state->imgYRef);
+        cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_NEAREST);
         cairo_paint(cr);
         if( zoom != 1.0 )
             cairo_restore(cr);
