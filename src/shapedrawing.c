@@ -16,6 +16,47 @@ static double getAngle(gdouble x1, gdouble y1, gdouble x2, gdouble y2)
     return res;
 }
 
+/* cairo bug workaround: cairo does not cope with long lines
+ */
+static void crLineTo(cairo_t *cr, gdouble x, gdouble y)
+{
+    gdouble xCur, yCur;
+
+    cairo_get_current_point(cr, &xCur, &yCur);
+    if( fabs(x - xCur) > fabs(y - yCur) ) {
+        double dy = (y - yCur) * 10000 / (x - xCur);
+        if( x > xCur ) {
+            while( x - xCur > 10000 ) {
+                xCur += 10000;
+                yCur += dy;
+                cairo_line_to(cr, xCur, yCur);
+            }
+        }else{
+            while( xCur - x > 10000 ) {
+                xCur -= 10000;
+                yCur -= dy;
+                cairo_line_to(cr, xCur, yCur);
+            }
+        }
+    }else{
+        double dx = (x - xCur) * 10000 / (y - yCur);
+        if( y > yCur ) {
+            while( y - yCur > 10000 ) {
+                xCur += dx;
+                yCur += 10000;
+                cairo_line_to(cr, xCur, yCur);
+            }
+        }else{
+            while( yCur - y > 10000 ) {
+                xCur -= dx;
+                yCur -= 10000;
+                cairo_line_to(cr, xCur, yCur);
+            }
+        }
+    }
+    cairo_line_to(cr, x, y);
+}
+
 void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y)
 {
     cairo_arc(cr, x, y, 1, 0, 2 * G_PI);
@@ -33,7 +74,7 @@ void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
     /* don't allow too dense wavy line from performance reasons */
     if( movement < 2.0 || 2.0 * round - deviation < 0.5 ) {
         cairo_move_to(cr, xBeg, yBeg);
-        cairo_line_to(cr, xEnd, yEnd);
+        crLineTo(cr, xEnd, yEnd);
     }else{
         double angleBound, angleBeg, angleEnd, mvIni, lim;
         double lineLen = sqrt((xEnd - xBeg) * (xEnd - xBeg)
