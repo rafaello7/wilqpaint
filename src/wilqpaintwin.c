@@ -1125,6 +1125,10 @@ static void setCurDrawImage(WilqpaintWindow *win, const char *fileName,
     priv->drawingHAdjNewX = priv->drawingVAdjNewY = 0.0;
     setZoom(win, 1.0);
     adjustBackgroundColorControl(priv);
+    ++priv->shapeControlsSetInProgress;
+    gtk_spin_button_set_value(priv->spinImageWidth, di_getWidth(newDrawImg));
+    gtk_spin_button_set_value(priv->spinImageHeight, di_getHeight(newDrawImg));
+    --priv->shapeControlsSetInProgress;
 }
 
 static void newFile(WilqpaintWindow *win,
