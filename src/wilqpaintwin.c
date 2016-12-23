@@ -597,6 +597,8 @@ static gdouble mapXValue(WilqpaintWindowPrivate *priv, gdouble val,
     gdouble imgWidth;
     gint drawingWidth;
 
+    if( priv->curZoom > 2.0 )
+        val = 0.5 * round(2.0 * val / priv->curZoom) * priv->curZoom;
     imgWidth = di_getWidth(priv->drawImage) * priv->curZoom;
     drawingWidth = gtk_widget_get_allocated_width(priv->drawing);
     if( drawingWidth > imgWidth )
@@ -604,7 +606,7 @@ static gdouble mapXValue(WilqpaintWindowPrivate *priv, gdouble val,
     if( mdp != MDP_COMPENSATE_OFFSET )
         val /= priv->curZoom;
     if( mdp == MDP_TO_DRAWIMAGE_SNAPPED )
-        val = grid_getSnapXValue(priv->gopts, val, TRUE);
+        val = grid_getSnapXValue(priv->gopts, val, priv->curZoom);
     return val;
 }
 
@@ -614,6 +616,8 @@ static gdouble mapYValue(WilqpaintWindowPrivate *priv, gdouble val,
     gdouble imgHeight;
     gint drawingHeight;
 
+    if( priv->curZoom > 2.0 )
+        val = 0.5 * round(2.0 * val / priv->curZoom) * priv->curZoom;
     imgHeight = di_getHeight(priv->drawImage) * priv->curZoom;
     drawingHeight = gtk_widget_get_allocated_height(priv->drawing);
     if( drawingHeight > imgHeight )
@@ -621,7 +625,7 @@ static gdouble mapYValue(WilqpaintWindowPrivate *priv, gdouble val,
     if( mdp != MDP_COMPENSATE_OFFSET )
         val /= priv->curZoom;
     if( mdp == MDP_TO_DRAWIMAGE_SNAPPED )
-        val = grid_getSnapYValue(priv->gopts, val, TRUE);
+        val = grid_getSnapYValue(priv->gopts, val, priv->curZoom);
     return val;
 }
 
@@ -723,9 +727,9 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
                 priv->lastEvX = evX;
                 priv->lastEvY = evY;
                 priv->snapXoffset = evX
-                    - grid_getSnapXValue(priv->gopts, evX, TRUE);
+                    - grid_getSnapXValue(priv->gopts, evX, priv->curZoom);
                 priv->snapYoffset = evY
-                    - grid_getSnapYValue(priv->gopts, evY, TRUE);
+                    - grid_getSnapYValue(priv->gopts, evY, priv->curZoom);
                 if( di_curShapeFromPoint(priv->drawImage, evX, evY,
                             priv->curZoom, event->state & GDK_CONTROL_MASK) )
                 {
@@ -749,9 +753,9 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
             priv->lastEvX = evX;
             priv->lastEvY = evY;
             priv->snapXoffset = evX
-                - grid_getSnapXValue(priv->gopts, evX, TRUE);
+                - grid_getSnapXValue(priv->gopts, evX, priv->curZoom);
             priv->snapYoffset = evY
-                - grid_getSnapYValue(priv->gopts, evY, TRUE);
+                - grid_getSnapYValue(priv->gopts, evY, priv->curZoom);
             if( di_curShapeFromPoint(priv->drawImage, evX, evY,
                         priv->curZoom, FALSE))
             {
@@ -807,10 +811,10 @@ gboolean on_drawing_motion(GtkWidget *widget, GdkEventMotion *event,
         case MA_LAYOUT:
             evX = grid_getSnapXValue(priv->gopts,
                     mapXValue(priv, event->x, MDP_TO_DRAWIMAGE)
-                    - priv->snapXoffset, TRUE) + priv->snapXoffset;
+                    - priv->snapXoffset, priv->curZoom) + priv->snapXoffset;
             evY = grid_getSnapYValue(priv->gopts,
                     mapYValue(priv, event->y, MDP_TO_DRAWIMAGE)
-                    - priv->snapYoffset, TRUE) + priv->snapYoffset;
+                    - priv->snapYoffset, priv->curZoom) + priv->snapYoffset;
             di_selectionDragTo(priv->drawImage, evX, evY,
                     event->state & GDK_SHIFT_MASK);
             priv->lastEvX = evX;
@@ -1418,19 +1422,20 @@ static void onGridDialogChange(GtkWindow *window)
     action = g_action_map_lookup_action(G_ACTION_MAP(win), "grid-show");
     g_action_change_state(action, g_variant_new_boolean(
                 grid_isShow(priv->gopts)));
-    action = g_action_map_lookup_action(G_ACTION_MAP(win), "grid-snap");
-    g_action_change_state(action, g_variant_new_boolean(
-                grid_isSnapTo(priv->gopts)));
     redrawDrawingArea(priv->drawing);
 }
 
-static void on_menu_grid_options(GSimpleAction *action, GVariant *parameter,
+static void on_menu_grid_options(GSimpleAction *sact, GVariant *parameter,
         gpointer window)
 {
     WilqpaintWindowPrivate *priv;
+    GAction *action;
 
     priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
     grid_showDialog(priv->gopts, GTK_WINDOW(window), onGridDialogChange);
+    action = g_action_map_lookup_action(G_ACTION_MAP(window), "snap");
+    g_action_change_state(action, g_variant_new_string(
+                grid_getSnapId(priv->gopts)));
 }
 
 static void menu_grid_show (GSimpleAction *action, GVariant *state,
@@ -1450,7 +1455,7 @@ static void menu_grid_snap (GSimpleAction *action, GVariant *state,
     WilqpaintWindowPrivate *priv;
 
     priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
-    grid_setIsSnapTo(priv->gopts, g_variant_get_boolean (state));
+    grid_setSnapById(priv->gopts, g_variant_get_string(state, NULL));
     g_simple_action_set_state(action, state);
 }
 
@@ -1478,7 +1483,7 @@ WilqpaintWindow *wilqpaint_windowNew(GtkApplication *app, const char *fileName)
         /* View */
         { "grid-options", on_menu_grid_options, NULL, NULL, NULL },
         { "grid-show", NULL, NULL, "false", menu_grid_show },
-        { "grid-snap", NULL, NULL, "false", menu_grid_snap },
+        { "snap", NULL, "s", "'1pxCenter'", menu_grid_snap },
         /* Help */
         { "help-about",  on_menu_about,  NULL, NULL, NULL }
     };

@@ -222,6 +222,19 @@ void shape_scale(Shape *shape, gdouble factor)
 void shape_getParams(const Shape *shape, ShapeParams *shapeParams)
 {
     *shapeParams = shape->params;
+    const char *shapeType;
+    switch(shape->type) {
+    case ST_FREEFORM:   shapeType = "FREEFORM"; break;
+    case ST_LINE:       shapeType = "LINE";     break;
+    case ST_TRIANGLE:   shapeType = "TRIANGLE"; break;
+    case ST_RECT:       shapeType = "RECT";     break;
+    case ST_OVAL:       shapeType = "OVAL";     break;
+    case ST_TEXT:       shapeType = "TEXT";     break;
+    case ST_ARROW:      shapeType = "ARROW";    break;
+    }
+    printf("shape_getParams: type=%s\n", shapeType);
+    printf("    (%g, %g), (%g, %g)\n", shape->xLeft, shape->yTop,
+            shape->xRight, shape->yBottom);
 }
 
 void shape_setParam(Shape *shape, enum ShapeParam shapeParam,

@@ -61,17 +61,43 @@
             <attribute name="label">_View</attribute>
             <section>
                 <item>
-                    <attribute name="label">Grid Options</attribute>
+                    <attribute name="label">Grid and Snap Options</attribute>
                     <attribute name="action">win.grid-options</attribute>
                 </item>
                 <item>
                     <attribute name="label">Show Grid</attribute>
                     <attribute name="action">win.grid-show</attribute>
                 </item>
-                <item>
-                    <attribute name="label">Snap To Grid</attribute>
-                    <attribute name="action">win.grid-snap</attribute>
-                </item>
+                <submenu>
+                    <attribute name="label">_Snap</attribute>
+                    <section>
+                        <item>
+                            <attribute name="label">none (0px)</attribute>
+                            <attribute name="action">win.snap</attribute>
+                            <attribute name="target">0px</attribute>
+                        </item>
+                        <item>
+                            <attribute name="label">0.5px</attribute>
+                            <attribute name="action">win.snap</attribute>
+                            <attribute name="target">0.5px</attribute>
+                        </item>
+                        <item>
+                            <attribute name="label">1px corner</attribute>
+                            <attribute name="action">win.snap</attribute>
+                            <attribute name="target">1pxCorner</attribute>
+                        </item>
+                        <item>
+                            <attribute name="label">1px center (+0.5px offset right and down)</attribute>
+                            <attribute name="action">win.snap</attribute>
+                            <attribute name="target">1pxCenter</attribute>
+                        </item>
+                        <item>
+                            <attribute name="label">to grid</attribute>
+                            <attribute name="action">win.snap</attribute>
+                            <attribute name="target">toGrid</attribute>
+                        </item>
+                    </section>
+                </submenu>
             </section>
         </submenu>
         <submenu>
