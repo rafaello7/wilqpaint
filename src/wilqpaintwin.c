@@ -334,10 +334,15 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         }
     }else if( gtk_toggle_button_get_active(priv->shapeLine) ) {
         shapeMargin = 2;
+        /* ensure the shape is at pixel boundary */
+        if( fmod(winHeight + thickness, 2) == 1 )
+            --winHeight;
         shape = shape_new(ST_LINE, shapeMargin, 0.5 * winHeight, &shapeParams);
         shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight, FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeArrow) ) {
         shapeMargin = 2;
+        if( fmod(winHeight + thickness, 2) == 1 )
+            --winHeight;
         shape = shape_new(ST_ARROW, shapeMargin, 0.5 * winHeight, &shapeParams);
         shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight, FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeTriangle) ) {
@@ -597,8 +602,6 @@ static gdouble mapXValue(WilqpaintWindowPrivate *priv, gdouble val,
     gdouble imgWidth;
     gint drawingWidth;
 
-    if( priv->curZoom > 2.0 )
-        val = 0.5 * round(2.0 * val / priv->curZoom) * priv->curZoom;
     imgWidth = di_getWidth(priv->drawImage) * priv->curZoom;
     drawingWidth = gtk_widget_get_allocated_width(priv->drawing);
     if( drawingWidth > imgWidth )
@@ -616,8 +619,6 @@ static gdouble mapYValue(WilqpaintWindowPrivate *priv, gdouble val,
     gdouble imgHeight;
     gint drawingHeight;
 
-    if( priv->curZoom > 2.0 )
-        val = 0.5 * round(2.0 * val / priv->curZoom) * priv->curZoom;
     imgHeight = di_getHeight(priv->drawImage) * priv->curZoom;
     drawingHeight = gtk_widget_get_allocated_height(priv->drawing);
     if( drawingHeight > imgHeight )

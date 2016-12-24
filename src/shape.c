@@ -232,9 +232,6 @@ void shape_getParams(const Shape *shape, ShapeParams *shapeParams)
     case ST_TEXT:       shapeType = "TEXT";     break;
     case ST_ARROW:      shapeType = "ARROW";    break;
     }
-    printf("shape_getParams: type=%s\n", shapeType);
-    printf("    (%g, %g), (%g, %g)\n", shape->xLeft, shape->yTop,
-            shape->xRight, shape->yBottom);
 }
 
 void shape_setParam(Shape *shape, enum ShapeParam shapeParam,

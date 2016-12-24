@@ -213,7 +213,7 @@ static gdouble getSnapValue(GridOptions *opts,
             res = 0.5 * floor(2.0 * res + 0.5);
         break;
     case SD_1PX_CORNER:
-        res = floor(res);
+        res = floor(res + 0.5);
         break;
     default:    /* SD_1PX_CENTER */
         res = floor(res) + 0.5;
