@@ -17,7 +17,7 @@ void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round);
 
 void sd_pathRect(cairo_t *cr, gdouble xBeg, gdouble yBeg,
-        gdouble xEnd, gdouble yEnd, gdouble round);
+        gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle);
 
 void sd_pathOval(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd);

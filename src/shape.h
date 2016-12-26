@@ -10,7 +10,8 @@ typedef enum {
     ST_RECT,
     ST_OVAL,
     ST_TEXT,
-    ST_ARROW
+    ST_ARROW,
+    ST_COUNT
 } ShapeType;
 
 enum ShapeCorner {

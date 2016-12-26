@@ -213,39 +213,68 @@ void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
 }
 
 void sd_pathRect(cairo_t *cr, gdouble xBeg, gdouble yBeg,
-        gdouble xEnd, gdouble yEnd, gdouble round)
+        gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle)
 {
-    if( xEnd < xBeg ) {
-        gdouble t = xBeg;
-        xBeg = xEnd;
-        xEnd = t;
+    gdouble angleSin, angleCos, xLen, yLen, xMid1, yMid1, xMid3, yMid3, tmp;
+
+    angle *= G_PI / 180;
+    angleSin = sin(angle);
+    angleCos = cos(angle);
+    xLen = (xEnd - xBeg) * angleCos - (yEnd - yBeg) * angleSin;
+    yLen = (xEnd - xBeg) * angleSin + (yEnd - yBeg) * angleCos;
+    xMid1 = xBeg + xLen * angleCos;
+    yMid1 = yBeg - xLen * angleSin;
+    xMid3 = xEnd - xLen * angleCos;
+    yMid3 = yEnd + xLen * angleSin;
+    if( xLen < 0 && yLen < 0 ) {
+        tmp = xBeg; xBeg = xEnd; xEnd = tmp;
+        tmp = yBeg; yBeg = yEnd; yEnd = tmp;
+        tmp = xMid1; xMid1 = xMid3; xMid3 = tmp;
+        tmp = yMid1; yMid1 = yMid3; yMid3 = tmp;
+        xLen = -xLen;
+        yLen = -yLen;
+    }else if( xLen < 0 ) {
+        tmp = xBeg; xBeg = xMid1; xMid1 = tmp;
+        tmp = yBeg; yBeg = yMid1; yMid1 = tmp;
+        tmp = xEnd; xEnd = xMid3; xMid3 = tmp;
+        tmp = yEnd; yEnd = yMid3; yMid3 = tmp;
+        xLen = -xLen;
+    }else if( yLen < 0 ) {
+        tmp = xBeg; xBeg = xMid3; xMid3 = tmp;
+        tmp = yBeg; yBeg = yMid3; yMid3 = tmp;
+        tmp = xEnd; xEnd = xMid1; xMid1 = tmp;
+        tmp = yEnd; yEnd = yMid1; yMid1 = tmp;
+        yLen = -yLen;
     }
-    if( yEnd < yBeg ) {
-        gdouble t = yBeg;
-        yBeg = yEnd;
-        yEnd = t;
-    }
-    round = fmin(round, 0.5 * G_SQRT2 * fmin(xEnd - xBeg, yEnd - yBeg));
-    xBeg -= (1 - 0.5 * G_SQRT2) * round;
-    yBeg -= (1 - 0.5 * G_SQRT2) * round;
-    xEnd += (1 - 0.5 * G_SQRT2) * round;
-    yEnd += (1 - 0.5 * G_SQRT2) * round;
-    cairo_move_to(cr, xBeg, yBeg + round);
+    round = fmin(round, 0.5 * G_SQRT2 * fmin(xLen, yLen));
+    xBeg -= (1 - 0.5 * G_SQRT2) * round * (angleCos + angleSin);
+    yBeg -= (1 - 0.5 * G_SQRT2) * round * (angleCos - angleSin);
+    xMid1 += (1 - 0.5 * G_SQRT2) * round * (angleCos - angleSin);
+    yMid1 -= (1 - 0.5 * G_SQRT2) * round * (angleCos + angleSin);
+    xEnd += (1 - 0.5 * G_SQRT2) * round * (angleCos + angleSin);
+    yEnd += (1 - 0.5 * G_SQRT2) * round * (angleCos - angleSin);
+    xMid3 -= (1 - 0.5 * G_SQRT2) * round * (angleCos - angleSin);
+    yMid3 += (1 - 0.5 * G_SQRT2) * round * (angleCos + angleSin);
+    cairo_move_to(cr, xBeg + round * angleSin, yBeg + round * angleCos);
     if( round )
-        cairo_arc(cr, xBeg + round, yBeg + round, round,
-                G_PI, 1.5 * G_PI);
-    cairo_line_to(cr, xEnd - round, yBeg);
+        cairo_arc(cr, xBeg + round * (angleSin + angleCos),
+                yBeg + round * (angleCos - angleSin), round,
+                G_PI - angle, 1.5 * G_PI - angle);
+    cairo_line_to(cr, xMid1 - round * angleCos, yMid1 + round * angleSin);
     if( round )
-        cairo_arc(cr, xEnd - round, yBeg + round, round,
-                1.5 * G_PI, 2 * G_PI);
-    cairo_line_to(cr, xEnd, yEnd - round);
+        cairo_arc(cr, xMid1 + round * (angleSin - angleCos),
+                yMid1 + round * (angleSin + angleCos), round,
+                1.5 * G_PI - angle, 2 * G_PI - angle);
+    cairo_line_to(cr, xEnd - round * angleSin, yEnd - round * angleCos);
     if( round )
-        cairo_arc(cr, xEnd - round, yEnd - round,
-                round, 0, 0.5 * G_PI);
-    cairo_line_to(cr, xBeg + round, yEnd);
+        cairo_arc(cr, xEnd - round * (angleSin + angleCos),
+                yEnd - round * (angleCos - angleSin),
+                round, -angle, 0.5 * G_PI - angle);
+    cairo_line_to(cr, xMid3 + round * angleCos, yMid3 - round * angleSin);
     if( round )
-        cairo_arc(cr, xBeg + round, yEnd - round, round,
-                0.5 * G_PI, G_PI);
+        cairo_arc(cr, xMid3 + round * (angleCos - angleSin),
+                yMid3 - round * (angleSin + angleCos), round,
+                0.5 * G_PI - angle, G_PI - angle);
     cairo_close_path(cr);
 }
 

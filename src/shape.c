@@ -455,7 +455,7 @@ static void strokeResizePoints(const Shape *shape, cairo_t *cr,
 }
 
 static void strokeAndFillShape(Shape *shape, cairo_t *cr, gdouble zoom,
-        gboolean isSelected, gboolean strokeOppositeResize, gdouble posFactor)
+        gboolean isSelected, gdouble posFactor)
 {
     if( shape->params.thickness == 0 || shape->params.strokeColor.alpha == 1) {
         if( shape->params.fillColor.alpha != 0 ) {
@@ -576,7 +576,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
-        strokeAndFillShape(shape, cr, zoom, isSelected, FALSE, 2.0 / 3.0);
+        strokeAndFillShape(shape, cr, zoom, isSelected, 2.0 / 3.0);
         if( isCurrent && isSelected )
             strokeResizePoints(shape, cr, zoom, FALSE);
         break;
@@ -584,13 +584,13 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathRect(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
-                    zoom * shape->params.round);
+                    zoom * shape->params.round, shape->params.angle);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
-        strokeAndFillShape(shape, cr, zoom, isSelected, TRUE, 0.5);
+        strokeAndFillShape(shape, cr, zoom, isSelected, 0.5);
         if( isCurrent && isSelected )
-            strokeResizePoints(shape, cr, zoom, TRUE);
+            strokeResizePoints(shape, cr, zoom, FALSE);
         break;
     case ST_OVAL:
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
@@ -599,7 +599,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
-        strokeAndFillShape(shape, cr, zoom, isSelected, TRUE, 0.5);
+        strokeAndFillShape(shape, cr, zoom, isSelected, 0.5);
         if( isCurrent && isSelected )
             strokeResizePoints(shape, cr, zoom, TRUE);
         break;
