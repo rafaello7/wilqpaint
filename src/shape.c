@@ -93,6 +93,8 @@ Shape *shape_replaceDup(Shape **pShape)
 void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom,
         gboolean even)
 {
+    gdouble angle, angleSin, angleCos, xLen, yLen;
+
     if( even ) {
         switch( shape->type ) {
         case ST_LINE:
@@ -106,13 +108,19 @@ void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom,
             break;
         case ST_RECT:
         case ST_OVAL:
-            if( fabs(xRight - shape->xLeft) > fabs(yBottom - shape->yTop) ) {
-                yBottom = shape->yTop
-                    + copysign(xRight - shape->xLeft, yBottom - shape->yTop);
-            }else{
-                xRight = shape->xLeft
-                    + copysign(yBottom - shape->yTop, xRight - shape->xLeft);
-            }
+            angle = shape->params.angle * G_PI / 180;
+            angleSin = sin(angle);
+            angleCos = cos(angle);
+            xLen = (xRight - shape->xLeft) * angleCos
+                - (yBottom - shape->yTop) * angleSin;
+            yLen = (xRight - shape->xLeft) * angleSin
+                + (yBottom - shape->yTop) * angleCos;
+            if( fabs(xLen) >= fabs(yLen) )
+                yLen = copysign(xLen, yLen);
+            else
+                xLen = copysign(yLen, xLen);
+            xRight = shape->xLeft + xLen * angleCos + yLen * angleSin;
+            yBottom = shape->yTop + yLen * angleCos - xLen * angleSin;
             break;
         }
     }
