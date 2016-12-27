@@ -307,7 +307,7 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     Shape *shape = NULL;
     int i;
     gdouble thickness, round, winWidth, winHeight, shapeWidth, shapeHeight;
-    gdouble shapeMargin;
+    gdouble shapeMargin, angle, angleSin, angleCos, angleSin2, angleCos2;
     gboolean hasText;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
@@ -346,7 +346,8 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shape = shape_new(ST_ARROW, shapeMargin, 0.5 * winHeight, &shapeParams);
         shape_layoutNew(shape, winWidth - shapeMargin, 0.5 * winHeight, FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeTriangle) ) {
-        gdouble htop, hbottom, angle = shapeParams.angle * G_PI / 360;
+        gdouble htop, hbottom;
+        angle = shapeParams.angle * G_PI / 360;
         if( round == 0 ) {
             /* it looks that cairo_stroke cutts vertex of triangle when
              * angle is less than 12 degrees */
@@ -377,11 +378,43 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shape_layoutNew(shape, 0.5 * winWidth,
                 0.5 * (winHeight + shapeHeight + htop - hbottom), FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeRect) ) {
-        shapeWidth = winWidth - 16 - thickness;
-        shapeHeight = winHeight - 16 - thickness;
-        round = fmin(round, 0.5 * fmin(shapeWidth, shapeHeight));
-        shapeWidth = fmax(1, shapeWidth - round * (2 - G_SQRT2));
-        shapeHeight = fmax(1, shapeHeight - round * (2 - G_SQRT2));
+        gdouble maxShapeWidth = winWidth - 16 - thickness;
+        gdouble maxShapeHeight = winHeight - 16 - thickness;
+        angle = fmod(shapeParams.angle, 90.0) * G_PI / 180;
+        angleSin = sin(angle);
+        angleCos = cos(angle);
+        angleSin2 = 2 * angleSin * angleCos;
+        angleCos2 = angleCos * angleCos - angleSin * angleSin;
+        if( round == 0 ) {
+            shapeWidth = fmax(1, maxShapeWidth
+                    - thickness * (angleSin + angleCos - 1));
+            shapeHeight = fmax(0, maxShapeHeight
+                    - thickness * (angleSin + angleCos - 1));
+        }else{
+            shapeWidth = maxShapeWidth;
+            shapeHeight = maxShapeHeight;
+        }
+        if( shapeWidth > shapeHeight * angleSin2 ) {
+            if( shapeWidth * angleSin2 > shapeHeight ) {
+                shapeWidth = shapeHeight / angleSin2;
+                shapeHeight = 0;
+            }else{
+                shapeHeight = (shapeHeight - shapeWidth * angleSin2)/angleCos2;
+            }
+        }else{
+            shapeHeight = shapeWidth * angleCos2 / angleSin2;
+        }
+        gdouble xLen = shapeWidth * angleCos - shapeHeight * angleSin;
+        gdouble yLen = shapeWidth * angleSin + shapeHeight * angleCos;
+        if( round != 0 ) {
+            round = fmin(round, 0.5 * G_SQRT2 * fmin(fabs(xLen), fabs(yLen)));
+            shapeWidth = fmax(1, fmin(shapeWidth, maxShapeWidth
+                        - round * (2 - G_SQRT2 * (angleSin + angleCos))));
+            shapeHeight = copysign(fmax(0,
+                        fmin(fabs(shapeHeight), maxShapeHeight
+                        - round * (2 - G_SQRT2 * (angleSin + angleCos)))),
+                    shapeHeight);
+        }
         shape = shape_new(ST_RECT, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
         shape_layoutNew(shape, 0.5 * (winWidth + shapeWidth),
