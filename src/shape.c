@@ -603,7 +603,8 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
     case ST_OVAL:
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathOval(cr, zoom * shape->xLeft, zoom * shape->yTop,
-                    zoom * shape->xRight, zoom * shape->yBottom);
+                    zoom * shape->xRight, zoom * shape->yBottom,
+                    shape->params.angle);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }

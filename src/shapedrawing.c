@@ -279,35 +279,60 @@ void sd_pathRect(cairo_t *cr, gdouble xBeg, gdouble yBeg,
 }
 
 void sd_pathOval(cairo_t *cr, gdouble xBeg, gdouble yBeg,
-        gdouble xEnd, gdouble yEnd)
+        gdouble xEnd, gdouble yEnd, gdouble angle)
 {
     cairo_matrix_t matrix;
+    gdouble angleSin, angleCos, xLen, yLen, xMid, yMid;
 
-    if( xEnd != xBeg && yEnd != yBeg ) {
+    angle *= G_PI / 180;
+    angleSin = sin(angle);
+    angleCos = cos(angle);
+    xLen = (xEnd - xBeg) * angleCos - (yEnd - yBeg) * angleSin;
+    yLen = (xEnd - xBeg) * angleSin + (yEnd - yBeg) * angleCos;
+    if( fabs(xLen) > 0.1 && fabs(yLen) > 0.1 ) {
         cairo_save(cr);
-        if( fabs(xEnd - xBeg) != fabs(yEnd - yBeg) ) {
-            matrix.xx = matrix.yy = 1.0;
-            matrix.xy = matrix.yx = matrix.x0 = matrix.y0 = 0;
-            if( fabs(xEnd - xBeg) < fabs(yEnd - yBeg) ) {
-                double xMid = 0.5 * (xBeg + xEnd);
-                matrix.xx = fabs((xEnd - xBeg) / (yEnd - yBeg));
-                matrix.x0 = xMid * (1.0 - matrix.xx);
+        xMid = 0.5 * (xBeg + xEnd);
+        yMid = 0.5 * (yBeg + yEnd);
+        if( fabs(xLen) != fabs(yLen) ) {
+            if( fabs(xLen) < fabs(yLen) ) {
+                double k = fabs(xLen / yLen);
+                matrix.xx = angleSin * angleSin + k * angleCos * angleCos;
+                matrix.xy = matrix.yx = (1.0 - k) * angleSin * angleCos;
+                matrix.yy = k * angleSin * angleSin + angleCos * angleCos;
+                matrix.x0 = xMid * (1 - angleSin * angleSin
+                        - k * angleCos * angleCos)
+                    - yMid * (1 - k) * angleSin * angleCos;
+                matrix.y0 = xMid * (k - 1) * angleSin * angleCos
+                    + yMid * (1 - k * angleSin * angleSin
+                            - angleCos * angleCos);
             }else{
-                double yMid = 0.5 * (yBeg + yEnd);
-                matrix.yy = fabs((yEnd - yBeg) / (xEnd - xBeg));
-                matrix.y0 = yMid * (1.0 - matrix.yy);
+                double k = fabs(yLen / xLen);
+                matrix.xx = k * angleSin * angleSin + angleCos * angleCos;
+                matrix.xy = matrix.yx = (k - 1.0) * angleSin * angleCos;
+                matrix.yy = angleSin * angleSin + k * angleCos * angleCos;
+                matrix.x0 = xMid * (1 - k * angleSin * angleSin
+                        - angleCos * angleCos)
+                    + yMid * (1 - k) * angleSin * angleCos;
+                matrix.y0 = xMid * (1 - k) * angleSin * angleCos
+                    + yMid * (1 - angleSin * angleSin
+                            - k * angleCos * angleCos);
             }
             cairo_transform(cr, &matrix);
         }
-        cairo_arc(cr, 0.5 * (xBeg + xEnd), 0.5 * (yBeg + yEnd),
-                0.5 * G_SQRT2 * fmax(fabs(xEnd - xBeg), fabs(yEnd - yBeg)),
+        cairo_arc(cr, xMid, yMid,
+                0.5 * G_SQRT2 * fmax(fabs(xLen), fabs(yLen)),
                 0, 2 * G_PI);
         cairo_restore(cr);
     }else{
-        cairo_rectangle(cr,
-                xBeg - 0.5 * (G_SQRT2 - 1) * (xEnd - xBeg),
-                yBeg - 0.5 * (G_SQRT2 - 1) * (yEnd - yBeg),
-                G_SQRT2 * (xEnd - xBeg), G_SQRT2 * (yEnd - yBeg));
+        cairo_move_to(cr, xBeg - 0.5 * (G_SQRT2 - 1)
+                * (xLen * angleCos + yLen * angleSin),
+                yBeg - 0.5 * (G_SQRT2 - 1)
+                * (-xLen * angleSin + yLen * angleCos));
+        cairo_line_to(cr, xEnd + 0.5 * (G_SQRT2 - 1)
+                * (xLen * angleCos + yLen * angleSin),
+                yEnd + 0.5 * (G_SQRT2 - 1)
+                * (-xLen * angleSin + yLen * angleCos));
+        cairo_close_path(cr);
     }
 }
 
