@@ -308,8 +308,7 @@ static Shape *curShape(const DrawImage *di)
 
 ShapeType di_getCurShapeType(const DrawImage *di)
 {
-    g_assert_cmpint(di->curShapeIdx, >=, 0);
-    return shape_getType(curShape(di));
+    return di->curShapeIdx >= 0 ? shape_getType(curShape(di)) : ST_COUNT;
 }
 
 void di_getCurShapeParams(const DrawImage *di, ShapeParams *shapeParams)

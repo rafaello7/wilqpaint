@@ -137,6 +137,7 @@ void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom,
 void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
         enum ShapeCorner corner, gboolean even)
 {
+    gdouble angle, angleSin, angleCos, xLen, yLen;
     gdouble shapeWidth, shapeHeight;
 
     if( corner == SC_LEFT_TOP || corner == SC_LEFT_BOTTOM )
@@ -169,21 +170,29 @@ void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
             break;
         case ST_RECT:
         case ST_OVAL:
-            if( fabs(shapeWidth) >= fabs(shapeHeight) ) {
-                if( corner == SC_LEFT_TOP || corner == SC_RIGHT_TOP )
-                    shape->yTop = shape->yBottom
-                        - copysign(shapeWidth, shapeHeight);
-                else
-                    shape->yBottom = shape->yTop
-                        + copysign(shapeWidth, shapeHeight);
-            }else{
-                if( corner == SC_LEFT_TOP || corner == SC_LEFT_BOTTOM )
-                    shape->xLeft = shape->xRight
-                        - copysign(shapeHeight, shapeWidth);
-                else
-                    shape->xRight = shape->xLeft
-                        + copysign(shapeHeight, shapeWidth);
-            }
+            angle = shape->params.angle * G_PI / 180;
+            angleSin = sin(angle);
+            angleCos = cos(angle);
+            xLen = (shape->xRight - shape->xLeft) * angleCos
+                - (shape->yBottom - shape->yTop) * angleSin;
+            yLen = (shape->xRight - shape->xLeft) * angleSin
+                + (shape->yBottom - shape->yTop) * angleCos;
+            if( fabs(xLen) >= fabs(yLen) )
+                yLen = copysign(xLen, yLen);
+            else
+                xLen = copysign(yLen, xLen);
+            if( corner == SC_LEFT_TOP || corner == SC_RIGHT_TOP )
+                shape->yTop =
+                    shape->yBottom - yLen * angleCos + xLen * angleSin;
+            if( corner == SC_LEFT_TOP || corner == SC_LEFT_BOTTOM )
+                shape->xLeft =
+                    shape->xRight - xLen * angleCos - yLen * angleSin;
+            if( corner == SC_RIGHT_TOP || corner == SC_RIGHT_BOTTOM )
+                shape->xRight =
+                    shape->xLeft + xLen * angleCos + yLen * angleSin;
+            if( corner == SC_LEFT_BOTTOM || corner == SC_RIGHT_BOTTOM )
+                shape->yBottom =
+                    shape->yTop + yLen * angleCos - xLen * angleSin;
             break;
         }
     }
@@ -230,16 +239,6 @@ void shape_scale(Shape *shape, gdouble factor)
 void shape_getParams(const Shape *shape, ShapeParams *shapeParams)
 {
     *shapeParams = shape->params;
-    const char *shapeType;
-    switch(shape->type) {
-    case ST_FREEFORM:   shapeType = "FREEFORM"; break;
-    case ST_LINE:       shapeType = "LINE";     break;
-    case ST_TRIANGLE:   shapeType = "TRIANGLE"; break;
-    case ST_RECT:       shapeType = "RECT";     break;
-    case ST_OVAL:       shapeType = "OVAL";     break;
-    case ST_TEXT:       shapeType = "TEXT";     break;
-    case ST_ARROW:      shapeType = "ARROW";    break;
-    }
 }
 
 void shape_setParam(Shape *shape, enum ShapeParam shapeParam,
@@ -610,7 +609,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         }
         strokeAndFillShape(shape, cr, zoom, isSelected, 0.5);
         if( isCurrent && isSelected )
-            strokeResizePoints(shape, cr, zoom, TRUE);
+            strokeResizePoints(shape, cr, zoom, shape->params.angle == 0);
         break;
     case ST_TEXT:
         drawText(cr, zoom, shape, isSelected);

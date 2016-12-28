@@ -174,41 +174,46 @@ void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
 void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round)
 {
-    double angleTan = tan(angle * G_PI / 360);
-    double height = sqrt((xEnd - xBeg) * (xEnd - xBeg)
-                + (yEnd - yBeg) * (yEnd - yBeg));
-    if( round == 0 ) {
+    if( fabs(angle) < 1 ) {
         cairo_move_to(cr, xBeg, yBeg);
-        cairo_line_to(cr, xEnd + (yEnd - yBeg) * angleTan,
-                yEnd - (xEnd - xBeg) * angleTan);
-        cairo_line_to(cr, xEnd - (yEnd - yBeg) * angleTan,
-                yEnd + (xEnd - xBeg) * angleTan);
-        cairo_close_path(cr);
-    }else if( round >= 0.5 * height ) {
-        cairo_arc(cr, 0.5 * (xBeg + xEnd), 0.5 * (yBeg + yEnd),
-                0.5 * height, 0, 2 * G_PI);
+        crLineTo(cr, xEnd, yEnd);
     }else{
-        gdouble xAdd = (xEnd - xBeg) * round / height;
-        gdouble yAdd = (yEnd - yBeg) * round / height;
-        double lineAngle = getAngle(xEnd - (yEnd - yBeg) * angleTan,
-                yEnd + (xEnd - xBeg) * angleTan, xBeg, yBeg);
-        cairo_arc(cr, xBeg + xAdd, yBeg + yAdd, round, lineAngle - G_PI/2,
-                lineAngle + G_PI/2 - angle * G_PI / 180);
-        lineAngle = getAngle(xBeg, yBeg, xEnd + (yEnd - yBeg) * angleTan,
-                yEnd - (xEnd - xBeg) * angleTan);
-        cairo_arc(cr, xEnd - xAdd + (yEnd - yBeg - 2 * yAdd) * angleTan,
-                yEnd - yAdd - (xEnd - xBeg - 2 * xAdd) * angleTan, round,
-                lineAngle - G_PI/2,
-                lineAngle + G_PI/2 - (90 - angle / 2) * G_PI / 180);
-        lineAngle = getAngle(xEnd + (yEnd - yBeg) * angleTan,
-                yEnd - (xEnd - xBeg) * angleTan,
-                xEnd - (yEnd - yBeg) * angleTan,
-                yEnd + (xEnd - xBeg) * angleTan);
-        cairo_arc(cr, xEnd - xAdd - (yEnd - yBeg - 2 * yAdd) * angleTan,
-                yEnd - yAdd + (xEnd - xBeg - 2 * xAdd) * angleTan, round,
-                lineAngle - G_PI/2,
-                lineAngle + G_PI/2 - (90 - angle / 2) * G_PI / 180);
-        cairo_close_path(cr);
+        double angleTan = tan(angle * G_PI / 360);
+        double height = sqrt((xEnd - xBeg) * (xEnd - xBeg)
+                    + (yEnd - yBeg) * (yEnd - yBeg));
+        if( round == 0 ) {
+            cairo_move_to(cr, xBeg, yBeg);
+            cairo_line_to(cr, xEnd + (yEnd - yBeg) * angleTan,
+                    yEnd - (xEnd - xBeg) * angleTan);
+            cairo_line_to(cr, xEnd - (yEnd - yBeg) * angleTan,
+                    yEnd + (xEnd - xBeg) * angleTan);
+            cairo_close_path(cr);
+        }else if( round >= 0.5 * height ) {
+            cairo_arc(cr, 0.5 * (xBeg + xEnd), 0.5 * (yBeg + yEnd),
+                    0.5 * height, 0, 2 * G_PI);
+        }else{
+            gdouble xAdd = (xEnd - xBeg) * round / height;
+            gdouble yAdd = (yEnd - yBeg) * round / height;
+            double lineAngle = getAngle(xEnd - (yEnd - yBeg) * angleTan,
+                    yEnd + (xEnd - xBeg) * angleTan, xBeg, yBeg);
+            cairo_arc(cr, xBeg + xAdd, yBeg + yAdd, round, lineAngle - G_PI/2,
+                    lineAngle + G_PI/2 - angle * G_PI / 180);
+            lineAngle = getAngle(xBeg, yBeg, xEnd + (yEnd - yBeg) * angleTan,
+                    yEnd - (xEnd - xBeg) * angleTan);
+            cairo_arc(cr, xEnd - xAdd + (yEnd - yBeg - 2 * yAdd) * angleTan,
+                    yEnd - yAdd - (xEnd - xBeg - 2 * xAdd) * angleTan, round,
+                    lineAngle - G_PI/2,
+                    lineAngle + G_PI/2 - (90 - angle / 2) * G_PI / 180);
+            lineAngle = getAngle(xEnd + (yEnd - yBeg) * angleTan,
+                    yEnd - (xEnd - xBeg) * angleTan,
+                    xEnd - (yEnd - yBeg) * angleTan,
+                    yEnd + (xEnd - xBeg) * angleTan);
+            cairo_arc(cr, xEnd - xAdd - (yEnd - yBeg - 2 * yAdd) * angleTan,
+                    yEnd - yAdd + (xEnd - xBeg - 2 * xAdd) * angleTan, round,
+                    lineAngle - G_PI/2,
+                    lineAngle + G_PI/2 - (90 - angle / 2) * G_PI / 180);
+            cairo_close_path(cr);
+        }
     }
 }
 

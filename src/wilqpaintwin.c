@@ -55,6 +55,7 @@ typedef struct {
     gdouble curZoom;
     gint shapeControlsSetInProgress;
     GridOptions *gopts;
+    gdouble curAngle[ST_COUNT];
 
     /* controls */
     GtkWidget       *drawing;
@@ -113,6 +114,13 @@ static void wilqpaint_window_init(WilqpaintWindow *win)
     priv->drawingHAdjNewX = priv->drawingVAdjNewY = -1.0;
     priv->shapeControlsSetInProgress = 0;
     priv->gopts = grid_optsNew();
+    priv->curAngle[ST_FREEFORM] = 0;
+    priv->curAngle[ST_LINE] = 0;
+    priv->curAngle[ST_TRIANGLE] = 60;
+    priv->curAngle[ST_RECT] = 0;
+    priv->curAngle[ST_OVAL] = 0;
+    priv->curAngle[ST_TEXT] = 0;
+    priv->curAngle[ST_ARROW] = 45;
 }
 
 static void wilqpaint_window_dispose(GObject *object)
@@ -258,6 +266,29 @@ static void adjustBackgroundColorControl(WilqpaintWindowPrivate *priv)
 
     di_getBackgroundColor(priv->drawImage, &color);
     gtk_color_chooser_set_rgba(priv->backgroundColor, &color);
+}
+
+static ShapeType getCurShapeType(WilqpaintWindowPrivate *priv)
+{
+    ShapeType shapeType;
+
+    if( gtk_toggle_button_get_active(priv->shapeFreeForm) )
+        shapeType = ST_FREEFORM;
+    else if( gtk_toggle_button_get_active(priv->shapeLine) )
+        shapeType = ST_LINE;
+    else if( gtk_toggle_button_get_active(priv->shapeTriangle) )
+        shapeType = ST_TRIANGLE;
+    else if( gtk_toggle_button_get_active(priv->shapeRect) )
+        shapeType = ST_RECT;
+    else if( gtk_toggle_button_get_active(priv->shapeOval) )
+        shapeType = ST_OVAL;
+    else if( gtk_toggle_button_get_active(priv->shapeText) )
+        shapeType = ST_TEXT;
+    else if( gtk_toggle_button_get_active(priv->shapeArrow) )
+        shapeType = ST_ARROW;
+    else
+        shapeType = ST_COUNT;
+    return shapeType;
 }
 
 static void setControlsFromShapeParams(WilqpaintWindowPrivate *priv,
@@ -491,11 +522,19 @@ void on_angle_value_changed(GtkSpinButton *spin, gpointer user_data)
     ShapeParams shapeParams;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
+    gdouble angle;
+    ShapeType shapeType;
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(spin)));
     priv = wilqpaint_window_get_instance_private(win);
+    angle = gtk_spin_button_get_value(spin);
+    shapeType = getCurShapeType(priv);
+    if( shapeType == ST_COUNT )
+        shapeType = di_getCurShapeType(priv->drawImage);
+    if( shapeType != ST_COUNT )
+        priv->curAngle[shapeType] = angle;
     if( priv->shapeControlsSetInProgress == 0 ) {
-        shapeParams.angle = gtk_spin_button_get_value(spin);
+        shapeParams.angle = angle;
         di_setSelectionParam(priv->drawImage, SP_ANGLE, &shapeParams);
         redrawDrawingArea(priv->drawing);
         redrawDrawingArea(priv->shapePreview);
@@ -817,28 +856,17 @@ gboolean on_drawing_button_press(GtkWidget *widget, GdkEventButton *event,
         }else{
             evX = mapXValue(priv, event->x, MDP_TO_DRAWIMAGE_SNAPPED);
             evY = mapYValue(priv, event->y, MDP_TO_DRAWIMAGE_SNAPPED);
-            if( gtk_toggle_button_get_active(priv->shapeFreeForm) )
-                shapeType = ST_FREEFORM;
-            else if( gtk_toggle_button_get_active(priv->shapeLine) )
-                shapeType = ST_LINE;
-            else if( gtk_toggle_button_get_active(priv->shapeTriangle) )
-                shapeType = ST_TRIANGLE;
-            else if( gtk_toggle_button_get_active(priv->shapeRect) )
-                shapeType = ST_RECT;
-            else if( gtk_toggle_button_get_active(priv->shapeOval) )
-                shapeType = ST_OVAL;
-            else if( gtk_toggle_button_get_active(priv->shapeText) )
-                shapeType = ST_TEXT;
-            else
-                shapeType = ST_ARROW;
-            getShapeParamsFromControls(priv, &shapeParams);
-            di_addShape(priv->drawImage, shapeType, evX, evY, &shapeParams,
-                    gtk_toggle_button_get_active(priv->drawBottom));
-            g_free((void*)shapeParams.text);
-            priv->lastEvX = evX;
-            priv->lastEvY = evY;
-            priv->snapXoffset = priv->snapYoffset = 0;
-            priv->curAction = MA_LAYOUT;
+            shapeType = getCurShapeType(priv);
+            if( shapeType != ST_COUNT ) {
+                getShapeParamsFromControls(priv, &shapeParams);
+                di_addShape(priv->drawImage, shapeType, evX, evY, &shapeParams,
+                        gtk_toggle_button_get_active(priv->drawBottom));
+                g_free((void*)shapeParams.text);
+                priv->lastEvX = evX;
+                priv->lastEvY = evY;
+                priv->snapXoffset = priv->snapYoffset = 0;
+                priv->curAction = MA_LAYOUT;
+            }
         }
         redrawDrawingArea(priv->drawing);
         gtk_widget_grab_focus(widget);
@@ -1111,7 +1139,8 @@ typedef enum {
     STP_LOUPE
 } ShapeToolsPage;
 
-static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp)
+static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp,
+        ShapeType shapeType)
 {
     const char *pageName;
     WilqpaintWindow *win;
@@ -1130,6 +1159,8 @@ static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp)
         pageName = "toolPageShape";
         break;
     }
+    if( shapeType != ST_COUNT )
+        gtk_spin_button_set_value(priv->angle, priv->curAngle[shapeType]);
     gtk_stack_set_visible_child_name(priv->shapeTools, pageName);
     if( di_selectionSetEmpty(priv->drawImage)
             || priv->selWidth != 0 || priv->selHeight != 0 )
@@ -1143,61 +1174,61 @@ static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp)
 void on_shapeSelect_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_SHAPE);
+        setShapeToolsActivePage(toggle, STP_SHAPE, ST_COUNT);
 }
 
 void on_shapeImageSize_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_IMAGESIZE);
+        setShapeToolsActivePage(toggle, STP_IMAGESIZE, ST_COUNT);
 }
 
 void on_shapeLoupe_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_LOUPE);
+        setShapeToolsActivePage(toggle, STP_LOUPE, ST_COUNT);
 }
 
 void on_shapeFreeForm_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_SHAPE);
+        setShapeToolsActivePage(toggle, STP_SHAPE, ST_FREEFORM);
 }
 
 void on_shapeLine_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_SHAPE);
+        setShapeToolsActivePage(toggle, STP_SHAPE, ST_LINE);
 }
 
 void on_shapeArrow_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_SHAPE);
+        setShapeToolsActivePage(toggle, STP_SHAPE, ST_ARROW);
 }
 
 void on_shapeText_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_SHAPE);
+        setShapeToolsActivePage(toggle, STP_SHAPE, ST_TEXT);
 }
 
 void on_shapeTriangle_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_SHAPE);
+        setShapeToolsActivePage(toggle, STP_SHAPE, ST_TRIANGLE);
 }
 
 void on_shapeRect_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_SHAPE);
+        setShapeToolsActivePage(toggle, STP_SHAPE, ST_RECT);
 }
 
 void on_shapeOval_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     if( gtk_toggle_button_get_active(toggle) )
-        setShapeToolsActivePage(toggle, STP_SHAPE);
+        setShapeToolsActivePage(toggle, STP_SHAPE, ST_OVAL);
 }
 
 /* Saves the file modifications.
