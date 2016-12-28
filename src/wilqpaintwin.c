@@ -115,7 +115,7 @@ static void wilqpaint_window_init(WilqpaintWindow *win)
     priv->shapeControlsSetInProgress = 0;
     priv->gopts = grid_optsNew();
     priv->curAngle[ST_FREEFORM] = 0;
-    priv->curAngle[ST_LINE] = 0;
+    priv->curAngle[ST_LINE] = 60;
     priv->curAngle[ST_TRIANGLE] = 60;
     priv->curAngle[ST_RECT] = 0;
     priv->curAngle[ST_OVAL] = 0;
@@ -1159,8 +1159,11 @@ static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp,
         pageName = "toolPageShape";
         break;
     }
-    if( shapeType != ST_COUNT )
+    if( shapeType != ST_COUNT ) {
+        ++priv->shapeControlsSetInProgress;
         gtk_spin_button_set_value(priv->angle, priv->curAngle[shapeType]);
+        --priv->shapeControlsSetInProgress;
+    }
     gtk_stack_set_visible_child_name(priv->shapeTools, pageName);
     if( di_selectionSetEmpty(priv->drawImage)
             || priv->selWidth != 0 || priv->selHeight != 0 )
