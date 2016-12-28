@@ -420,8 +420,24 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shape_layoutNew(shape, 0.5 * (winWidth + shapeWidth),
                 0.5 * (winHeight + shapeHeight), FALSE);
     }else if( gtk_toggle_button_get_active(priv->shapeOval) ) {
-        shapeWidth = fmax(1, 0.5 * G_SQRT2 * (winWidth - thickness - 8));
-        shapeHeight = fmax(1, 0.5 * G_SQRT2 * (winHeight - thickness - 8));
+        shapeWidth = fmax(1, winWidth - thickness - 8);
+        shapeHeight = fmax(1, winHeight - thickness - 8);
+        angle = fmod(shapeParams.angle, 90.0) * G_PI / 180;
+        angleSin = sin(angle);
+        angleCos = cos(angle);
+        if( angle <= 0.25 * G_PI ) {
+            gdouble a = (1 + (2 - G_SQRT2) * angleSin) *
+                fmin(shapeWidth / (G_SQRT2 * angleCos + angleSin),
+                        shapeHeight / (G_SQRT2 * angleSin + angleCos));
+            shapeWidth = a * (angleCos + 0.5 * G_SQRT2 * angleSin);
+            shapeHeight = a * (0.5 * G_SQRT2 * angleCos - angleSin);
+        }else{
+            gdouble b = (1 + (2 - G_SQRT2) * angleCos) *
+                fmin(shapeWidth / (angleCos + G_SQRT2 * angleSin),
+                        shapeHeight / (angleSin + G_SQRT2 * angleCos));
+            shapeWidth = b * (0.5 * G_SQRT2 * angleCos + angleSin);
+            shapeHeight = b * (angleCos - 0.5 * G_SQRT2 * angleSin);
+        }
         shape = shape_new(ST_OVAL, 0.5 * (winWidth - shapeWidth),
                 0.5 * (winHeight - shapeHeight), &shapeParams);
         shape_layoutNew(shape,  0.5 * (winWidth + shapeWidth),
