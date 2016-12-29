@@ -27,8 +27,9 @@ enum ShapeParam {
     SP_FILLCOLOR,
     SP_TEXTCOLOR,
     SP_THICKNESS,
-    SP_ANGLE,
     SP_ROUND,
+    SP_ANGLE,
+    SP_LEFTRIGHT,
     SP_TEXT,        /* sets also font if not set yet */
     SP_FONTNAME
 };
@@ -38,8 +39,9 @@ typedef struct {
     GdkRGBA fillColor;
     GdkRGBA textColor;
     gdouble thickness;
-    gdouble angle;
     gdouble round;
+    gdouble angle;
+    gboolean isLeft;
     const char *text;
     const char *fontName;
 } ShapeParams;

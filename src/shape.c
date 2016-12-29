@@ -109,6 +109,8 @@ void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom,
         case ST_RECT:
         case ST_OVAL:
             angle = shape->params.angle * G_PI / 180;
+            if( ! shape->params.isLeft )
+                angle = -angle;
             angleSin = sin(angle);
             angleCos = cos(angle);
             xLen = (xRight - shape->xLeft) * angleCos
@@ -171,6 +173,8 @@ void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
         case ST_RECT:
         case ST_OVAL:
             angle = shape->params.angle * G_PI / 180;
+            if( ! shape->params.isLeft )
+                angle = -angle;
             angleSin = sin(angle);
             angleCos = cos(angle);
             xLen = (shape->xRight - shape->xLeft) * angleCos
@@ -259,6 +263,9 @@ void shape_setParam(Shape *shape, enum ShapeParam shapeParam,
         break;
     case SP_ANGLE:
         shape->params.angle = shapeParams->angle;
+        break;
+    case SP_LEFTRIGHT:
+        shape->params.isLeft = shapeParams->isLeft;
         break;
     case SP_ROUND:
         shape->params.round = shapeParams->round;
@@ -523,6 +530,8 @@ static void drawText(cairo_t *cr, gdouble zoom, Shape *shape,
     if( shape->params.angle != 0 ) {
         cairo_matrix_t matrix;
         gdouble angle = shape->params.angle * G_PI / 180;
+        if( ! shape->params.isLeft )
+            angle = -angle;
         gdouble angleSin = sin(angle);
         gdouble angleCos = cos(angle);
         cairo_save(cr);
@@ -541,7 +550,7 @@ static void drawText(cairo_t *cr, gdouble zoom, Shape *shape,
                 zoom * (shape->yBottom - shape->params.thickness) - 0.5*height,
                 zoom * (shape->xRight + shape->params.thickness) + 0.5 * width,
                 zoom * (shape->yBottom + shape->params.thickness) + 0.5*height,
-                zoom * shape->params.round, 0);
+                zoom * shape->params.round, 0, TRUE);
         if( shape->params.fillColor.alpha != 0.0 ) {
             gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
             cairo_fill_preserve(cr);
@@ -585,7 +594,8 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathLine(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
-                    shape->params.angle, zoom * shape->params.round);
+                    zoom * shape->params.round, shape->params.angle,
+                    shape->params.isLeft);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -597,7 +607,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathTriangle(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
-                    shape->params.angle, zoom * shape->params.round);
+                    zoom * shape->params.round, shape->params.angle);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -609,7 +619,8 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathRect(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
-                    zoom * shape->params.round, shape->params.angle);
+                    zoom * shape->params.round, shape->params.angle,
+                    shape->params.isLeft);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -621,7 +632,8 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathOval(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
-                    shape->params.round, shape->params.angle);
+                    shape->params.round, shape->params.angle,
+                    shape->params.isLeft);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -639,7 +651,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
                     zoom * fmax(shape->params.thickness, 1.0),
                     1.0 + shape->params.round *
                         (0.02 + 0.1 / fmax(shape->params.thickness, 1.0)),
-                    shape->params.angle);
+                    shape->params.angle, shape->params.isLeft);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
