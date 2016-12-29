@@ -15,6 +15,9 @@ const char *wlq_getInFileName(const WlqInFile*);
 gboolean wlq_read(WlqInFile*, void *buf, gsize size, gchar **errLoc);
 gboolean wlq_write(WlqOutFile*, const void *data, gsize size, gchar **errLoc);
 
+gboolean wlq_readU8(WlqInFile*, unsigned*, gchar **errLoc);
+gboolean wlq_writeU8(WlqOutFile*, unsigned, gchar **errLoc);
+
 gboolean wlq_readU16(WlqInFile*, unsigned*, gchar **errLoc);
 gboolean wlq_writeU16(WlqOutFile*, unsigned, gchar **errLoc);
 

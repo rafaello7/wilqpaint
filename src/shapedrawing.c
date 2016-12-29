@@ -64,11 +64,11 @@ void sd_pathPoint(cairo_t *cr, gdouble x, gdouble y)
 
 void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle,
-        gboolean isLeft)
+        gboolean isRight)
 {
     gdouble movement, deviation;
 
-    if( ! isLeft )
+    if( isRight )
         angle += 120;
     angle *= G_PI / 360;
     movement = 2.0 * round * sin(angle);
@@ -125,7 +125,7 @@ void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
 
 void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
         double xRight, gdouble yBottom, gdouble thickness, gdouble proportion,
-        gdouble angle, gboolean isLeft)
+        gdouble angle, gboolean isRight)
 {
     double xBeg, yBeg;
 
@@ -146,7 +146,7 @@ void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
     cairo_move_to(cr, xRight, yBottom);
     cairo_line_to(cr, xRight - xEnd - yEnd * angleTan,
             yBottom - yEnd + xEnd * angleTan);
-    if( isLeft && angle < 90 ) {
+    if( ! isRight && angle < 90 ) {
         xBeg = xEnd * 0.5 * (1 + angleTan * angleTan);
         yBeg = yEnd * 0.5 * (1 + angleTan * angleTan);
         minLen = 0.5 * thickness * ((0.5 * proportion + 0.5) / angleTan
@@ -170,7 +170,7 @@ void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
                 - xBeg * (1 - 1 / proportion),
                 yBottom - (yEnd + xEnd * angleTan)/proportion
                 - yBeg * (1 - 1 / proportion));
-    }else if( isLeft && angle < 90 ) {
+    }else if( ! isRight && angle < 90 ) {
         cairo_line_to(cr, xRight - xBeg, yBottom - yBeg);
     }
     cairo_line_to(cr, xRight - xEnd + yEnd * angleTan,
@@ -180,7 +180,7 @@ void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
 
 void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle,
-        gboolean isLeft)
+        gboolean isRight)
 {
     if( angle > 170 )
         angle = 170;
@@ -190,7 +190,7 @@ void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
     }else{
         double height, angleTan = tan(angle * G_PI / 360);
 
-        if( ! isLeft ) {
+        if( isRight ) {
             gdouble tmp = xBeg; xBeg = xEnd; xEnd = tmp;
             tmp = yBeg; yBeg = yEnd; yEnd = tmp;
         }
@@ -234,11 +234,11 @@ void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
 
 void sd_pathRect(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle,
-        gboolean isLeft)
+        gboolean isRight)
 {
     gdouble angleSin, angleCos, xLen, yLen, xMid1, yMid1, xMid3, yMid3, tmp;
 
-    if( ! isLeft )
+    if( isRight )
         angle = - angle;
     angle *= G_PI / 180;
     angleSin = sin(angle);
@@ -303,12 +303,12 @@ void sd_pathRect(cairo_t *cr, gdouble xBeg, gdouble yBeg,
 
 void sd_pathOval(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle,
-        gboolean isLeft)
+        gboolean isRight)
 {
     cairo_matrix_t matrix;
     gdouble angleSin, angleCos, xLen, yLen, xMid, yMid, kx, ky;
 
-    if( ! isLeft )
+    if( isRight )
         angle = - angle;
     angle *= G_PI / 180;
     angleSin = sin(angle);

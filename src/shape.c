@@ -109,7 +109,7 @@ void shape_layoutNew(Shape *shape, gdouble xRight, gdouble yBottom,
         case ST_RECT:
         case ST_OVAL:
             angle = shape->params.angle * G_PI / 180;
-            if( ! shape->params.isLeft )
+            if( shape->params.isRight )
                 angle = -angle;
             angleSin = sin(angle);
             angleCos = cos(angle);
@@ -173,7 +173,7 @@ void shape_layout(Shape *shape, const Shape *prev, gdouble x, gdouble y,
         case ST_RECT:
         case ST_OVAL:
             angle = shape->params.angle * G_PI / 180;
-            if( ! shape->params.isLeft )
+            if( shape->params.isRight )
                 angle = -angle;
             angleSin = sin(angle);
             angleCos = cos(angle);
@@ -265,7 +265,7 @@ void shape_setParam(Shape *shape, enum ShapeParam shapeParam,
         shape->params.angle = shapeParams->angle;
         break;
     case SP_LEFTRIGHT:
-        shape->params.isLeft = shapeParams->isLeft;
+        shape->params.isRight = shapeParams->isRight;
         break;
     case SP_ROUND:
         shape->params.round = shapeParams->round;
@@ -530,7 +530,7 @@ static void drawText(cairo_t *cr, gdouble zoom, Shape *shape,
     if( shape->params.angle != 0 ) {
         cairo_matrix_t matrix;
         gdouble angle = shape->params.angle * G_PI / 180;
-        if( ! shape->params.isLeft )
+        if( shape->params.isRight )
             angle = -angle;
         gdouble angleSin = sin(angle);
         gdouble angleCos = cos(angle);
@@ -595,7 +595,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
             sd_pathLine(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
                     zoom * shape->params.round, shape->params.angle,
-                    shape->params.isLeft);
+                    shape->params.isRight);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -608,7 +608,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
             sd_pathTriangle(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
                     zoom * shape->params.round, shape->params.angle,
-                    shape->params.isLeft);
+                    shape->params.isRight);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -621,7 +621,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
             sd_pathRect(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
                     zoom * shape->params.round, shape->params.angle,
-                    shape->params.isLeft);
+                    shape->params.isRight);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -634,7 +634,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
             sd_pathOval(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
                     shape->params.round, shape->params.angle,
-                    shape->params.isLeft);
+                    shape->params.isRight);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -652,7 +652,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
                     zoom * fmax(shape->params.thickness, 1.0),
                     1.0 + shape->params.round *
                         (0.02 + 0.1 / fmax(shape->params.thickness, 1.0)),
-                    shape->params.angle, shape->params.isLeft);
+                    shape->params.angle, shape->params.isRight);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
@@ -671,7 +671,7 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
 
 Shape *shape_readFromFile(WlqInFile *inFile, gchar **errLoc)
 {
-    unsigned shapeType, thickness, angle, round, ptCount;
+    unsigned shapeType, thickness, round, angle, isRight, ptCount;
     gdouble xLeft, xRight, yTop, yBottom;
     ShapeParams params;
     Shape *shape;
@@ -686,14 +686,16 @@ Shape *shape_readFromFile(WlqInFile *inFile, gchar **errLoc)
             && wlq_readRGBA(inFile, &params.fillColor, errLoc)
             && wlq_readRGBA(inFile, &params.textColor, errLoc)
             && wlq_readU16(inFile, &thickness, errLoc)
-            && wlq_readU16(inFile, &angle, errLoc)
             && wlq_readU16(inFile, &round, errLoc)
+            && wlq_readU8(inFile, &angle, errLoc)
+            && wlq_readU8(inFile, &isRight, errLoc)
             && (params.text = wlq_readString(inFile, errLoc)) != NULL
             && (params.fontName = wlq_readString(inFile, errLoc)) != NULL;
     if( isOK ) {
         params.thickness = thickness;
-        params.angle     = angle;
         params.round     = round;
+        params.angle     = angle;
+        params.isRight   = isRight;
         shape = shape_new(shapeType, xLeft, yTop, &params);
         shape->xRight = xRight;
         shape->yBottom = yBottom;
@@ -746,8 +748,9 @@ gboolean shape_writeToFile(const Shape *shape, WlqOutFile *outFile,
             && wlq_writeRGBA(outFile, &shape->params.fillColor, errLoc)
             && wlq_writeRGBA(outFile, &shape->params.textColor, errLoc)
             && wlq_writeU16(outFile, shape->params.thickness, errLoc)
-            && wlq_writeU16(outFile, shape->params.angle, errLoc)
             && wlq_writeU16(outFile, shape->params.round, errLoc)
+            && wlq_writeU8(outFile, shape->params.angle, errLoc)
+            && wlq_writeU8(outFile, shape->params.isRight, errLoc)
             && wlq_writeString(outFile, shape->params.text, errLoc)
             && wlq_writeString(outFile, shape->params.fontName, errLoc)
             && wlq_writeU32(outFile, shape->ptCount, errLoc);

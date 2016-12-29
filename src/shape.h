@@ -41,7 +41,7 @@ typedef struct {
     gdouble thickness;
     gdouble round;
     gdouble angle;
-    gboolean isLeft;
+    gboolean isRight;
     const char *text;
     const char *fontName;
 } ShapeParams;

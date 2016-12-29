@@ -157,6 +157,23 @@ gboolean wlq_writeU16(WlqOutFile *outFile, unsigned val, gchar **errLoc)
     return wlq_write(outFile, &valBE, 2, errLoc);
 }
 
+gboolean wlq_readU8(WlqInFile *inFile, unsigned *val, gchar **errLoc)
+{
+    unsigned char cval;
+    gboolean res;
+
+    if( res = wlq_read(inFile, &cval, 1, errLoc) )
+        *val = cval;
+    return res;
+}
+
+gboolean wlq_writeU8(WlqOutFile *outFile, unsigned val, gchar **errLoc)
+{
+    unsigned char cval = val;
+
+    return wlq_write(outFile, &cval, 1, errLoc);
+}
+
 gboolean wlq_readU32(WlqInFile *inFile, unsigned *val, gchar **errLoc)
 {
     guint32 valBE;

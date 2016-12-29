@@ -58,7 +58,7 @@ typedef struct {
     struct {
         gdouble round;
         gdouble angle;
-        gboolean isLeft;
+        gboolean isRight;
     } curParams[ST_COUNT];
 
     /* controls */
@@ -122,25 +122,25 @@ static void wilqpaint_window_init(WilqpaintWindow *win)
     priv->gopts = grid_optsNew();
     priv->curParams[ST_FREEFORM].round = 0;
     priv->curParams[ST_FREEFORM].angle = 0;
-    priv->curParams[ST_FREEFORM].isLeft = TRUE;
+    priv->curParams[ST_FREEFORM].isRight = FALSE;
     priv->curParams[ST_LINE].round = 0;
     priv->curParams[ST_LINE].angle = 60;
-    priv->curParams[ST_LINE].isLeft = TRUE;
+    priv->curParams[ST_LINE].isRight = FALSE;
     priv->curParams[ST_TRIANGLE].round = 0;
     priv->curParams[ST_TRIANGLE].angle = 60;
-    priv->curParams[ST_TRIANGLE].isLeft = TRUE;
+    priv->curParams[ST_TRIANGLE].isRight = FALSE;
     priv->curParams[ST_RECT].round = 0;
     priv->curParams[ST_RECT].angle = 0;
-    priv->curParams[ST_RECT].isLeft = TRUE;
+    priv->curParams[ST_RECT].isRight = FALSE;
     priv->curParams[ST_OVAL].round = 0;
     priv->curParams[ST_OVAL].angle = 0;
-    priv->curParams[ST_OVAL].isLeft = TRUE;
+    priv->curParams[ST_OVAL].isRight = FALSE;
     priv->curParams[ST_TEXT].round = 0;
     priv->curParams[ST_TEXT].angle = 0;
-    priv->curParams[ST_TEXT].isLeft = TRUE;
+    priv->curParams[ST_TEXT].isRight = FALSE;
     priv->curParams[ST_ARROW].round = 50;
     priv->curParams[ST_ARROW].angle = 45;
-    priv->curParams[ST_ARROW].isLeft = TRUE;
+    priv->curParams[ST_ARROW].isRight = FALSE;
 }
 
 static void wilqpaint_window_dispose(GObject *object)
@@ -326,8 +326,8 @@ static void setControlsFromShapeParams(WilqpaintWindowPrivate *priv,
     gtk_color_chooser_set_rgba(priv->textColor, &shapeParams->textColor);
     gtk_spin_button_set_value(priv->thickness, shapeParams->thickness);
     gtk_spin_button_set_value(priv->angle, shapeParams->angle);
-    gtk_toggle_button_set_active(shapeParams->isLeft ?
-            priv->angleLeft : priv->angleRight, TRUE);
+    gtk_toggle_button_set_active(shapeParams->isRight ?
+            priv->angleRight : priv->angleLeft, TRUE);
     gtk_spin_button_set_value(priv->round, shapeParams->round);
     textBuffer = gtk_text_view_get_buffer(priv->textView);
     if( shapeParams->text ) {
@@ -350,7 +350,7 @@ static void getShapeParamsFromControls(WilqpaintWindowPrivate *priv,
     gtk_color_chooser_get_rgba(priv->textColor, &shapeParams->textColor);
     shapeParams->thickness = gtk_spin_button_get_value(priv->thickness);
     shapeParams->angle = gtk_spin_button_get_value(priv->angle);
-    shapeParams->isLeft = gtk_toggle_button_get_active(priv->angleLeft);
+    shapeParams->isRight = gtk_toggle_button_get_active(priv->angleRight);
     shapeParams->round = gtk_spin_button_get_value(priv->round);
     textBuffer = gtk_text_view_get_buffer(priv->textView);
     gtk_text_buffer_get_bounds (textBuffer, &start, &end);
@@ -439,7 +439,7 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         gdouble maxShapeWidth = winWidth - 16 - thickness;
         gdouble maxShapeHeight = winHeight - 16 - thickness;
         angle = fmod(shapeParams.angle, 90.0);
-        if( ! shapeParams.isLeft )
+        if( shapeParams.isRight )
             angle = 90 - angle;
         angle *= G_PI / 180;
         angleSin = sin(angle);
@@ -484,7 +484,7 @@ void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
         shapeWidth = fmax(1, winWidth - thickness - 8);
         shapeHeight = fmax(1, winHeight - thickness - 8);
         angle = fmod(shapeParams.angle, 90.0);
-        if( ! shapeParams.isLeft )
+        if( shapeParams.isRight )
             angle = 90 - angle;
         angle *= G_PI / 180;
         angleSin = sin(angle);
@@ -582,24 +582,24 @@ void on_angle_value_changed(GtkSpinButton *spin, gpointer user_data)
     }
 }
 
-void on_angleLeft_toggled(GtkToggleButton *toggle, gpointer user_data)
+void on_angleRight_toggled(GtkToggleButton *toggle, gpointer user_data)
 {
     ShapeParams shapeParams;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
     ShapeType shapeType;
-    gboolean isLeft;
+    gboolean isRight;
 
-    isLeft = gtk_toggle_button_get_active(toggle);
+    isRight = gtk_toggle_button_get_active(toggle);
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(toggle)));
     priv = wilqpaint_window_get_instance_private(win);
     shapeType = getCurShapeType(priv);
     if( shapeType == ST_COUNT )
         shapeType = di_getCurShapeType(priv->drawImage);
     if( shapeType != ST_COUNT )
-        priv->curParams[shapeType].isLeft = isLeft;
+        priv->curParams[shapeType].isRight = isRight;
     if( priv->shapeControlsSetInProgress == 0 ) {
-        shapeParams.isLeft = isLeft;
+        shapeParams.isRight = isRight;
         di_setSelectionParam(priv->drawImage, SP_LEFTRIGHT, &shapeParams);
         redrawDrawingArea(priv->drawing);
         redrawDrawingArea(priv->shapePreview);
@@ -1230,8 +1230,8 @@ static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp,
                 priv->curParams[shapeType].round);
         gtk_spin_button_set_value(priv->angle,
                 priv->curParams[shapeType].angle);
-        gtk_toggle_button_set_active(priv->curParams[shapeType].isLeft ?
-                priv->angleLeft : priv->angleRight, TRUE);
+        gtk_toggle_button_set_active(priv->curParams[shapeType].isRight ?
+                priv->angleRight : priv->angleLeft, TRUE);
         --priv->shapeControlsSetInProgress;
     }
     gtk_stack_set_visible_child_name(priv->shapeTools, pageName);
