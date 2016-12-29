@@ -619,7 +619,8 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
             sd_pathArrow(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
                     zoom * fmax(shape->params.thickness, 1.0),
-                    2.0 + 6.0 / fmax(shape->params.thickness, 1.0),
+                    1.0 + shape->params.round *
+                        (0.02 + 0.1 / fmax(shape->params.thickness, 1.0)),
                     shape->params.angle);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);

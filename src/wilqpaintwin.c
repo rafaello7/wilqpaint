@@ -55,7 +55,10 @@ typedef struct {
     gdouble curZoom;
     gint shapeControlsSetInProgress;
     GridOptions *gopts;
-    gdouble curAngle[ST_COUNT];
+    struct {
+        gdouble round;
+        gdouble angle;
+    } curParams[ST_COUNT];
 
     /* controls */
     GtkWidget       *drawing;
@@ -114,13 +117,20 @@ static void wilqpaint_window_init(WilqpaintWindow *win)
     priv->drawingHAdjNewX = priv->drawingVAdjNewY = -1.0;
     priv->shapeControlsSetInProgress = 0;
     priv->gopts = grid_optsNew();
-    priv->curAngle[ST_FREEFORM] = 0;
-    priv->curAngle[ST_LINE] = 60;
-    priv->curAngle[ST_TRIANGLE] = 60;
-    priv->curAngle[ST_RECT] = 0;
-    priv->curAngle[ST_OVAL] = 0;
-    priv->curAngle[ST_TEXT] = 0;
-    priv->curAngle[ST_ARROW] = 45;
+    priv->curParams[ST_FREEFORM].round = 0;
+    priv->curParams[ST_FREEFORM].angle = 0;
+    priv->curParams[ST_LINE].round = 0;
+    priv->curParams[ST_LINE].angle = 60;
+    priv->curParams[ST_TRIANGLE].round = 0;
+    priv->curParams[ST_TRIANGLE].angle = 60;
+    priv->curParams[ST_RECT].round = 0;
+    priv->curParams[ST_RECT].angle = 0;
+    priv->curParams[ST_OVAL].round = 0;
+    priv->curParams[ST_OVAL].angle = 0;
+    priv->curParams[ST_TEXT].round = 0;
+    priv->curParams[ST_TEXT].angle = 0;
+    priv->curParams[ST_ARROW].round = 50;
+    priv->curParams[ST_ARROW].angle = 45;
 }
 
 static void wilqpaint_window_dispose(GObject *object)
@@ -506,11 +516,19 @@ void on_round_value_changed(GtkSpinButton *spin, gpointer user_data)
     ShapeParams shapeParams;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
+    gdouble round;
+    ShapeType shapeType;
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(spin)));
     priv = wilqpaint_window_get_instance_private(win);
+    round = gtk_spin_button_get_value(spin);
+    shapeType = getCurShapeType(priv);
+    if( shapeType == ST_COUNT )
+        shapeType = di_getCurShapeType(priv->drawImage);
+    if( shapeType != ST_COUNT )
+        priv->curParams[shapeType].round = round;
     if( priv->shapeControlsSetInProgress == 0 ) {
-        shapeParams.round = gtk_spin_button_get_value(spin);
+        shapeParams.round = round;
         di_setSelectionParam(priv->drawImage, SP_ROUND, &shapeParams);
         redrawDrawingArea(priv->drawing);
         redrawDrawingArea(priv->shapePreview);
@@ -532,7 +550,7 @@ void on_angle_value_changed(GtkSpinButton *spin, gpointer user_data)
     if( shapeType == ST_COUNT )
         shapeType = di_getCurShapeType(priv->drawImage);
     if( shapeType != ST_COUNT )
-        priv->curAngle[shapeType] = angle;
+        priv->curParams[shapeType].angle = angle;
     if( priv->shapeControlsSetInProgress == 0 ) {
         shapeParams.angle = angle;
         di_setSelectionParam(priv->drawImage, SP_ANGLE, &shapeParams);
@@ -1161,7 +1179,10 @@ static void setShapeToolsActivePage(GtkToggleButton *toggle, ShapeToolsPage stp,
     }
     if( shapeType != ST_COUNT ) {
         ++priv->shapeControlsSetInProgress;
-        gtk_spin_button_set_value(priv->angle, priv->curAngle[shapeType]);
+        gtk_spin_button_set_value(priv->round,
+                priv->curParams[shapeType].round);
+        gtk_spin_button_set_value(priv->angle,
+                priv->curParams[shapeType].angle);
         --priv->shapeControlsSetInProgress;
     }
     gtk_stack_set_visible_child_name(priv->shapeTools, pageName);
