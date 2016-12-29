@@ -67,6 +67,8 @@ void sd_pathLine(cairo_t *cr, gdouble xBeg, gdouble yBeg,
 {
     gdouble movement, deviation;
 
+    if( angle > 300 )
+        angle = 300;
     angle *= G_PI / 360;
     movement = 2.0 * round * sin(angle);
     deviation = 2.0 * round * cos(angle);
@@ -128,10 +130,16 @@ void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
 
     if( thickness < 1.0 )
         thickness = 1.0;
+    if( angle < 10 )
+        angle = 10;
+    else if( angle > 170 && angle < 190 )
+        angle = angle > 180 ? 190 : 170;
+    else if( angle > 350 )
+        angle = 350;
     double minLen;
     double lineLen = sqrt((xRight - xLeft) * (xRight - xLeft)
             + (yBottom - yTop) * (yBottom - yTop));
-    double angleTan = tan(angle * G_PI / 360);
+    double angleTan = tan((angle < 180 ? angle : 360 - angle) * G_PI / 360);
     double xEnd = 0.5 * proportion * thickness / angleTan
         * (xRight-xLeft) / lineLen;
     double yEnd = 0.5 * proportion * thickness / angleTan
@@ -174,6 +182,8 @@ void sd_pathArrow(cairo_t *cr, gdouble xLeft, gdouble yTop,
 void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble angle, gdouble round)
 {
+    if( angle > 170 )
+        angle = 170;
     if( fabs(angle) < 1 ) {
         cairo_move_to(cr, xBeg, yBeg);
         crLineTo(cr, xEnd, yEnd);

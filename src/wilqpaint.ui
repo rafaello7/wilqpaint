@@ -3,7 +3,7 @@
 <interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkAdjustment" id="adjustmentAngle">
-    <property name="upper">170</property>
+    <property name="upper">360</property>
     <property name="step_increment">5</property>
     <property name="page_increment">15</property>
   </object>
