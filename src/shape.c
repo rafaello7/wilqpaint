@@ -520,12 +520,28 @@ static void drawText(cairo_t *cr, gdouble zoom, Shape *shape,
         width = zoom;
         height = 8 * zoom;
     }
+    if( shape->params.angle != 0 ) {
+        cairo_matrix_t matrix;
+        gdouble angle = shape->params.angle * G_PI / 180;
+        gdouble angleSin = sin(angle);
+        gdouble angleCos = cos(angle);
+        cairo_save(cr);
+        matrix.xx = matrix.yy = angleCos;
+        matrix.xy = angleSin;
+        matrix.yx = -angleSin;
+        matrix.x0 = zoom * (shape->xRight * (1 - angleCos)
+                - shape->yBottom * angleSin);
+        matrix.y0 = zoom * (shape->xRight * angleSin
+                + (1 - angleCos) * shape->yBottom);
+        cairo_transform(cr, &matrix);
+    }
     if( shape->params.fillColor.alpha != 0.0 || isSelected ) {
-        cairo_rectangle(cr,
+        sd_pathRect(cr,
                 zoom * (shape->xRight - shape->params.thickness) - 0.5 * width,
                 zoom * (shape->yBottom - shape->params.thickness) - 0.5*height,
-                width + 2.0 * zoom * shape->params.thickness,
-                height + 2.0 * zoom * shape->params.thickness);
+                zoom * (shape->xRight + shape->params.thickness) + 0.5 * width,
+                zoom * (shape->yBottom + shape->params.thickness) + 0.5*height,
+                zoom * shape->params.round, 0);
         if( shape->params.fillColor.alpha != 0.0 ) {
             gdk_cairo_set_source_rgba(cr, &shape->params.fillColor);
             cairo_fill_preserve(cr);
@@ -544,6 +560,8 @@ static void drawText(cairo_t *cr, gdouble zoom, Shape *shape,
         /* pango_cairo_show_layout does not clear path */
         cairo_new_path(cr);
     }
+    if( shape->params.angle != 0 )
+        cairo_restore(cr);
     shape->drawnTextWidth = width / zoom;
     shape->drawnTextHeight = height / zoom;
 }
