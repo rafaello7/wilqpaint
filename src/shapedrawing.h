@@ -14,7 +14,8 @@ void sd_pathArrow(cairo_t *cr, gdouble shapeXRef, gdouble shapeYRef,
         gdouble proportion, gdouble angle, gboolean isLeft);
 
 void sd_pathTriangle(cairo_t *cr, gdouble xBeg, gdouble yBeg,
-        gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle);
+        gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle,
+        gboolean isLeft);
 
 void sd_pathRect(cairo_t *cr, gdouble xBeg, gdouble yBeg,
         gdouble xEnd, gdouble yEnd, gdouble round, gdouble angle,

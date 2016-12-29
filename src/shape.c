@@ -607,7 +607,8 @@ void shape_draw(Shape *shape, cairo_t *cr, gdouble zoom, gboolean isSelected,
         if( shape->xRight != shape->xLeft || shape->yBottom != shape->yTop ) {
             sd_pathTriangle(cr, zoom * shape->xLeft, zoom * shape->yTop,
                     zoom * shape->xRight, zoom * shape->yBottom,
-                    zoom * shape->params.round, shape->params.angle);
+                    zoom * shape->params.round, shape->params.angle,
+                    shape->params.isLeft);
         }else{
             sd_pathPoint(cr, zoom * shape->xLeft, zoom * shape->yTop);
         }
