@@ -687,7 +687,7 @@ Shape *shape_readFromFile(WlqInFile *inFile, gchar **errLoc)
             && wlq_readRGBA(inFile, &params.textColor, errLoc)
             && wlq_readU16(inFile, &thickness, errLoc)
             && wlq_readU16(inFile, &round, errLoc)
-            && wlq_readU8(inFile, &angle, errLoc)
+            && wlq_readU16(inFile, &angle, errLoc)
             && wlq_readU8(inFile, &isRight, errLoc)
             && (params.text = wlq_readString(inFile, errLoc)) != NULL
             && (params.fontName = wlq_readString(inFile, errLoc)) != NULL;
@@ -749,7 +749,7 @@ gboolean shape_writeToFile(const Shape *shape, WlqOutFile *outFile,
             && wlq_writeRGBA(outFile, &shape->params.textColor, errLoc)
             && wlq_writeU16(outFile, shape->params.thickness, errLoc)
             && wlq_writeU16(outFile, shape->params.round, errLoc)
-            && wlq_writeU8(outFile, shape->params.angle, errLoc)
+            && wlq_writeU16(outFile, shape->params.angle, errLoc)
             && wlq_writeU8(outFile, shape->params.isRight, errLoc)
             && wlq_writeString(outFile, shape->params.text, errLoc)
             && wlq_writeString(outFile, shape->params.fontName, errLoc)
