@@ -25,6 +25,7 @@ enum StateModification {
     SM_IMAGE_BACKGROUND,    /* set image background */
     SM_IMAGE_SCALE,         /* scale image */
     SM_IMAGE_SIZE,          /* change image size and position */
+    SM_IMAGE_ROTATE,        /* rotate image */
     SM_IMAGE_THRESHOLD,
     SM_UNDO_REDO            /* undo/redo operation */
 };
@@ -790,6 +791,42 @@ gboolean di_isModified(const DrawImage *di)
     const DrawImageState *state = di->states + di->stateCur;
 
     return state->id != di->savedStateId;
+}
+
+void di_rotate180(DrawImage *di)
+{
+    int i, j, imgWidth, imgHeight, imgStride;
+    unsigned char *src, *pxsrc, *dest, *pxdest, buf[4];
+
+    DrawImageState *state = getStateForModify(di, SM_IMAGE_ROTATE);
+    g_hash_table_remove_all(di->selection);
+    if( state->baseImage == NULL )
+        return;
+    imgWidth = cairo_image_surface_get_width(state->baseImage);
+    imgHeight = cairo_image_surface_get_height(state->baseImage);
+    imgStride = cairo_image_surface_get_stride(state->baseImage);
+    cairo_surface_flush(state->baseImage);
+    src = cairo_image_surface_get_data(state->baseImage);
+    dest = src + imgStride * (imgHeight-1);
+    pxsrc = src;
+    pxdest = dest + (imgWidth - 1) * 4;
+    i = 0;
+    while( pxsrc < pxdest ) {
+        memcpy(buf, pxsrc, 4);
+        memcpy(pxsrc, pxdest, 4);
+        memcpy(pxdest, buf, 4);
+        if( ++i == imgWidth ) {
+            src += imgStride;
+            dest -= imgStride;
+            pxsrc = src;
+            pxdest = dest + (imgWidth - 1) * 4;
+            i = 0;
+        }else{
+            pxsrc += 4;
+            pxdest -= 4;
+        }
+    }
+    cairo_surface_mark_dirty(state->baseImage);
 }
 
 void di_free(DrawImage *di)

@@ -82,6 +82,8 @@ gboolean di_isModified(const DrawImage*);
 void di_thresholdPreview(DrawImage*, gdouble level);
 void di_thresholdFinish(DrawImage*, gboolean commit);
 
+void di_rotate180(DrawImage*);
+
 void di_free(DrawImage*);
 
 void di_dump(DrawImage*);

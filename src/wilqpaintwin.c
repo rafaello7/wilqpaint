@@ -1519,6 +1519,16 @@ static void on_menu_image_scale(GSimpleAction *action, GVariant *parameter,
     }
 }
 
+static void on_menu_image_rotate180(GSimpleAction *action, GVariant *parameter,
+        gpointer window)
+{
+    WilqpaintWindowPrivate *priv;
+
+    priv = wilqpaint_window_get_instance_private(WILQPAINT_WINDOW(window));
+    di_rotate180(priv->drawImage);
+    redrawDrawingArea(priv->drawing);
+}
+
 static void onThresholdValueChange(GtkWindow *win, gdouble value)
 {
     WilqpaintWindowPrivate *priv;
@@ -1633,6 +1643,7 @@ WilqpaintWindow *wilqpaint_windowNew(GtkApplication *app, const char *fileName)
         { "edit-undo", on_menu_edit_undo, NULL, NULL, NULL },
         { "edit-redo", on_menu_edit_redo, NULL, NULL, NULL },
         { "image-scale", on_menu_image_scale, NULL, NULL, NULL },
+        { "rotate180", on_menu_image_rotate180, NULL, NULL, NULL },
         { "image-threshold", on_menu_image_threshold, NULL, NULL, NULL },
         /* View */
         { "grid-options", on_menu_grid_options, NULL, NULL, NULL },

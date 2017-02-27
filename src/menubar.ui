@@ -51,6 +51,15 @@
                     <attribute name="label">_Scale Image</attribute>
                     <attribute name="action">win.image-scale</attribute>
                 </item>
+                <submenu>
+                    <attribute name="label">_Rotate</attribute>
+                    <section>
+                        <item>
+                            <attribute name="label">180 degree</attribute>
+                            <attribute name="action">win.rotate180</attribute>
+                        </item>
+                    </section>
+                </submenu>
                 <item>
                     <attribute name="label">_Convert to Black and White</attribute>
                     <attribute name="action">win.image-threshold</attribute>
