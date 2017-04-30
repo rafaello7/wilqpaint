@@ -1,0 +1,12 @@
+Source: wilqpaint
+Section: graphics
+Priority: optional
+Maintainer: Rafal <fatwildcat@gmail.com>
+Build-Depends: debhelper (>= 9), autotools-dev
+Standards-Version: 3.9.8
+Homepage: https://github.com/rafaello7/wilqpaint
+
+Package: wilqpaint
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Image painting program

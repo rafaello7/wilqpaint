@@ -1,4 +1,4 @@
-SUBDIRS = src
+SUBDIRS = src debian
 
 desktopdir = $(datadir)/applications
 dist_desktop_DATA = wilqpaint.desktop
