@@ -75,7 +75,7 @@ DrawImage *di_new(gint imgWidth, gint imgHeight, const GdkPixbuf *baseImage)
     di->states[0].imgBgColor.red = 1.0;
     di->states[0].imgBgColor.green = 1.0;
     di->states[0].imgBgColor.blue = 1.0;
-    di->states[0].imgBgColor.alpha = 1.0;
+    di->states[0].imgBgColor.alpha = baseImage ? 0.0 : 1.0;
     di->states[0].shapes = NULL;
     di->states[0].shapeCount = 0;
     di->stateFirst = 0;
@@ -633,7 +633,12 @@ void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
     gint baseImgWidth, baseImgHeight;
     cairo_surface_t *baseImage;
 
-    gdk_cairo_set_source_rgba(cr, &state->imgBgColor);
+	if( state->imgBgColor.alpha != 0.0 ) {
+		gdk_cairo_set_source_rgba(cr, &state->imgBgColor);
+		cairo_rectangle(cr, 0, 0, state->imgWidth * zoom,
+				state->imgHeight * zoom);
+		cairo_fill(cr);
+	}
     if( state->baseImage != NULL ) {
         baseImage = di->preview ? di->preview : state->baseImage;
         baseImgWidth = cairo_image_surface_get_width(baseImage);
@@ -673,10 +678,6 @@ void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
         cairo_paint(cr);
         if( zoom != 1.0 )
             cairo_restore(cr);
-    }else{
-        cairo_rectangle(cr, 0, 0, state->imgWidth * zoom,
-                state->imgHeight * zoom);
-        cairo_fill(cr);
     }
     if( state->imgXRef != 0.0 || state->imgYRef != 0.0 ) {
         cairo_save(cr);
