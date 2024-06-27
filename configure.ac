@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([wilqpaint], [0.1], [fatwildcat@gmail.com])
+AC_INIT([wilqpaint], [0.2], [fatwildcat@gmail.com])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_SRCDIR([src/wilqpaint.c])
 AC_CONFIG_HEADERS([config.h])

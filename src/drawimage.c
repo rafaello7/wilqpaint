@@ -691,6 +691,21 @@ void di_draw(const DrawImage *di, cairo_t *cr, gdouble zoom)
         cairo_restore(cr);
 }
 
+GdkPixbuf *di_toPixbuf(const DrawImage *di)
+{
+    gint imgWidth = di_getWidth(di);
+    gint imgHeight = di_getHeight(di);
+    cairo_surface_t *paintImage = cairo_image_surface_create(
+            CAIRO_FORMAT_ARGB32, imgWidth, imgHeight);
+    cairo_t *cr = cairo_create(paintImage);
+    di_draw(di, cr, 1.0);
+    cairo_destroy(cr);
+    GdkPixbuf *pixbuf = gdk_pixbuf_get_from_surface(paintImage,
+            0, 0, imgWidth, imgHeight);
+    cairo_surface_destroy(paintImage);
+    return pixbuf;
+}
+
 void di_thresholdPreview(DrawImage *di, gdouble level)
 {
     DrawImageState *state = di->states + di->stateCur;

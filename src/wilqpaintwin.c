@@ -332,7 +332,8 @@ static void setControlsFromShapeParams(WilqpaintWindowPrivate *priv,
     textBuffer = gtk_text_view_get_buffer(priv->textView);
     if( shapeParams->text ) {
         gtk_text_buffer_set_text(textBuffer, shapeParams->text, -1);
-        gtk_font_button_set_font_name(priv->fontButton, shapeParams->fontName);
+        gtk_font_chooser_set_font(
+                GTK_FONT_CHOOSER(priv->fontButton), shapeParams->fontName);
     }else{
         gtk_text_buffer_set_text(textBuffer, "", 0);
     }
@@ -356,7 +357,8 @@ static void getShapeParamsFromControls(WilqpaintWindowPrivate *priv,
     gtk_text_buffer_get_bounds (textBuffer, &start, &end);
     shapeParams->text =
         gtk_text_buffer_get_text(textBuffer, &start, &end, FALSE);
-    shapeParams->fontName = gtk_font_button_get_font_name(priv->fontButton);
+    shapeParams->fontName = gtk_font_chooser_get_font(
+            GTK_FONT_CHOOSER(priv->fontButton));
 }
 
 void on_shapePreview_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
@@ -618,7 +620,8 @@ void on_shapeTextBuffer_changed(GtkTextBuffer *textBuffer, gpointer user_data)
         gtk_text_buffer_get_bounds (textBuffer, &start, &end);
         shapeParams.text =
             gtk_text_buffer_get_text(textBuffer, &start, &end, FALSE);
-        shapeParams.fontName = gtk_font_button_get_font_name(priv->fontButton);
+        shapeParams.fontName = gtk_font_chooser_get_font(
+                GTK_FONT_CHOOSER(priv->fontButton));
         di_setSelectionParam(priv->drawImage, SP_TEXT, &shapeParams);
         g_free((char*)shapeParams.text);
         redrawDrawingArea(priv->drawing);
@@ -635,7 +638,8 @@ void on_font_font_set(GtkFontButton *fontButton, gpointer user_data)
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(fontButton)));
     priv = wilqpaint_window_get_instance_private(win);
     if( priv->shapeControlsSetInProgress == 0 ) {
-        shapeParams.fontName = gtk_font_button_get_font_name(fontButton);
+        shapeParams.fontName = gtk_font_chooser_get_font(
+                GTK_FONT_CHOOSER(fontButton));
         di_setSelectionParam(priv->drawImage, SP_FONTNAME, &shapeParams);
         redrawDrawingArea(priv->drawing);
     }
@@ -1449,6 +1453,28 @@ static void on_menu_open(GSimpleAction *action, GVariant *parameter,
     }
 }
 
+static void on_menu_from_clipboard_cb(GtkClipboard *clipboard,
+        GdkPixbuf *pixbuf, gpointer data)
+{
+    if( pixbuf != NULL ) {
+        WilqpaintWindow *win = WILQPAINT_WINDOW(data);
+        DrawImage *newDrawImg = di_new(gdk_pixbuf_get_width(pixbuf),
+                        gdk_pixbuf_get_height(pixbuf), pixbuf);
+        setCurDrawImage(win, NULL, newDrawImg);
+    }
+}
+
+static void on_menu_from_clipboard(GSimpleAction *action, GVariant *parameter,
+        gpointer window)
+{
+    WilqpaintWindow *win = WILQPAINT_WINDOW(window);
+    if( ! saveChanges(win, TRUE, FALSE) )
+        return;
+    GtkClipboard *clipboard = gtk_widget_get_clipboard(GTK_WIDGET(win),
+            GDK_SELECTION_CLIPBOARD);
+    gtk_clipboard_request_image(clipboard, on_menu_from_clipboard_cb, window);
+}
+
 static void on_menu_saveas(GSimpleAction *action, GVariant *parameter,
         gpointer window)
 {
@@ -1459,6 +1485,22 @@ static void on_menu_save(GSimpleAction *action, GVariant *parameter,
         gpointer window)
 {
     saveChanges(WILQPAINT_WINDOW(window), FALSE, FALSE);
+}
+
+static void on_menu_to_clipboard(GSimpleAction *action, GVariant *parameter,
+        gpointer win)
+{
+    WilqpaintWindowPrivate *priv;
+
+    priv = wilqpaint_window_get_instance_private(win);
+    if( priv->drawImage != NULL ) {
+        GtkClipboard *clipboard = gtk_widget_get_clipboard(GTK_WIDGET(win),
+                GDK_SELECTION_CLIPBOARD);
+        di_selectionSetEmpty(priv->drawImage);
+        GdkPixbuf *pixbuf = di_toPixbuf(priv->drawImage);
+        gtk_clipboard_set_image(clipboard, pixbuf);
+        g_object_unref(G_OBJECT(pixbuf));
+    }
 }
 
 static void on_menu_quit(GSimpleAction *action, GVariant *parameter,
@@ -1636,8 +1678,10 @@ WilqpaintWindow *wilqpaint_windowNew(GtkApplication *app, const char *fileName)
         /* File */
         { "new",  on_menu_new,  NULL, NULL, NULL },
         { "open", on_menu_open, NULL, NULL, NULL },
+        { "from-clipboard", on_menu_from_clipboard, NULL, NULL, NULL },
         { "save", on_menu_save, NULL, NULL, NULL },
         { "saveas", on_menu_saveas, NULL, NULL, NULL },
+        { "to-clipboard", on_menu_to_clipboard, NULL, NULL, NULL },
         { "quit", on_menu_quit, NULL, NULL, NULL },
         /* Edit */
         { "edit-undo", on_menu_edit_undo, NULL, NULL, NULL },

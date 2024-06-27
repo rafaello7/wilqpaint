@@ -1,3 +1,10 @@
+wilqpaint (0.2) unstable; urgency=medium
+
+  * added clipboard copy/paste clipboard
+  * removed deprecation warnings
+
+ -- Rafal <fatwildcat@gmail.com>  Thu, 27 Jun 2024 14:19:07 +0200
+
 wilqpaint (0.1-1) unstable; urgency=medium
 
   * Initial release

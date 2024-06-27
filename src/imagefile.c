@@ -77,14 +77,7 @@ gboolean imgfile_save(DrawImage *di, const char *fileName, gchar **errLoc)
     }else{
         typeIdx = imgtype_getIdxByFileName(fileName);
         if( typeIdx >= 0 && imgtype_isWritable(typeIdx) ) {
-            cairo_surface_t *paintImage = cairo_image_surface_create(
-                    CAIRO_FORMAT_ARGB32, imgWidth, imgHeight);
-            cairo_t *cr = cairo_create(paintImage);
-            di_draw(di, cr, 1.0);
-            cairo_destroy(cr);
-            GdkPixbuf *pixbuf = gdk_pixbuf_get_from_surface(paintImage,
-                    0, 0, imgWidth, imgHeight);
-            cairo_surface_destroy(paintImage);
+            GdkPixbuf *pixbuf = di_toPixbuf(di);
             isOK = gdk_pixbuf_save(pixbuf, fileName,
                     imgtype_getId(typeIdx), &gerr, NULL);
             g_object_unref(G_OBJECT(pixbuf));

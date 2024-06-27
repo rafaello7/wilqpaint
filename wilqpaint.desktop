@@ -2,7 +2,7 @@
 Type=Application
 Name=Wilqpaint
 Comment=Image painting program
-Exec=wilqpaint
+Exec=wilqpaint %U
 Icon=wilqpaint
 Terminal=false
 StartupNotify=true

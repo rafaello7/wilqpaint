@@ -74,6 +74,7 @@ void di_setSize(DrawImage*, gint imgWidth, gint imgHeight,
         gdouble translateXfactor, gdouble translateYfactor);
 
 void di_draw(const DrawImage*, cairo_t*, gdouble zoom);
+GdkPixbuf *di_toPixbuf(const DrawImage*);
 
 gboolean di_saveWLQ(DrawImage*, const char *fileName, gchar **errLoc);
 void di_markSaved(DrawImage*);
