@@ -10,7 +10,7 @@ AC_PROG_CC
 
 # Checks for libraries.
 AC_CHECK_LIB([m], [fabs])
-PKG_CHECK_MODULES(LIBGTK, [gtk+-3.0])
+PKG_CHECK_MODULES([LIBGTK], [gtk+-3.0])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h])
