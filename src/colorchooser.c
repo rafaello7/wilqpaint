@@ -9,7 +9,6 @@ static GdkRGBA curChooseColorStroke = {
 static GdkRGBA curChooseColorFill = {
     .red = 1.0, .green = 1.0, .blue = 1.0, .alpha = 1.0
 };
-static gdouble curChooseAlpha = 1.0;
 
 static const unsigned PRE_COLORS[27] = {
     0000, 0200, 0001, 0201, 0002, 0202, 0012, 0212, 0112,
@@ -35,7 +34,7 @@ gboolean on_colorChooser_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
             gtk_widget_get_allocated_width(widget),
             gtk_widget_get_allocated_height(widget));
     for(i = 0; i < 40; ++i) {
-        if(i == 27 || (i < 27 ? curChooseAlpha != 1.0 : i != 33 && i != 39) ) {
+        if(i == 27 || i > 27 && i != 33 && i != 39 ) {
             cairo_rectangle(cr, x, y, 16, 16);
             gdk_cairo_set_source_pixbuf (cr, transparencyPatt, x, y);
             cairo_fill(cr);
@@ -47,7 +46,7 @@ gboolean on_colorChooser_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
                 color.red = (preColor >> 6) / 2.0;
                 color.green = ((preColor >> 3) & 0x7) / 2.0;
                 color.blue = (preColor & 0x7) / 2.0;
-                color.alpha = 0.5 + curChooseAlpha / 2.0;
+                color.alpha = 1.0;
             }else if( i < 34 ) {
                 color = curChooseColorStroke;
                 color.alpha = 0.25 + PRE_ALPHA[i - 28] * 0.75;
@@ -105,7 +104,7 @@ gboolean on_colorChooser_button_press(GtkWidget *colorChooser,
                 newBtnColor.red = (preColor >> 6) / 2.0;
                 newBtnColor.green = ((preColor >> 3) & 0x7) / 2.0;
                 newBtnColor.blue = (preColor & 0x7) / 2.0;
-                newBtnColor.alpha = curChooseAlpha;
+                newBtnColor.alpha = 1.0;
                 if( cc == CC_STROKE )
                     curChooseColorStroke = newBtnColor;
                 else
@@ -116,13 +115,11 @@ gboolean on_colorChooser_button_press(GtkWidget *colorChooser,
                 newBtnColor.blue = 0.0;
                 newBtnColor.alpha = 0.0;
             }else if( item >= 28 && item < 34 ) {
-                curChooseAlpha = PRE_ALPHA[item - 28];
                 newBtnColor = curChooseColorStroke;
-                newBtnColor.alpha = curChooseAlpha;
+                newBtnColor.alpha = PRE_ALPHA[item - 28];
             }else if( item >= 34 && item < 40 ) {
-                curChooseAlpha = PRE_ALPHA[item - 34];
                 newBtnColor = curChooseColorFill;
-                newBtnColor.alpha = curChooseAlpha;
+                newBtnColor.alpha = PRE_ALPHA[item - 34];
             }else
                 newBtnColor = prevBtnColor;
             if( !gdk_rgba_equal(&prevBtnColor, &newBtnColor) ) {

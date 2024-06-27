@@ -38,7 +38,7 @@
                 <item>
                     <attribute name="label">_Quit</attribute>
                     <attribute name="action">win.quit</attribute>
-                    <attribute name="accel">&lt;Primary&gt;q</attribute>
+                    <attribute name="accel">&lt;Primary&gt;w</attribute>
                 </item>
             </section>
         </submenu>
