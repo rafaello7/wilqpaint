@@ -93,9 +93,7 @@ typedef struct {
     GtkSpinButton   *spinImageWidth;
     GtkSpinButton   *spinImageHeight;
     GtkToggleButton *marginLeft;
-    GtkToggleButton *marginRight;
     GtkToggleButton *marginTop;
-    GtkToggleButton *marginBottom;
 
     GtkLabel *zoomLabel;
 } WilqpaintWindowPrivate;
@@ -225,11 +223,7 @@ static void wilqpaint_window_class_init(WilqpaintWindowClass *wilqpaintClass)
     gtk_widget_class_bind_template_child_private(widgetClass,
             WilqpaintWindow, marginLeft);
     gtk_widget_class_bind_template_child_private(widgetClass,
-            WilqpaintWindow, marginRight);
-    gtk_widget_class_bind_template_child_private(widgetClass,
             WilqpaintWindow, marginTop);
-    gtk_widget_class_bind_template_child_private(widgetClass,
-            WilqpaintWindow, marginBottom);
     gtk_widget_class_bind_template_child_private(widgetClass,
             WilqpaintWindow, zoomLabel);
     setColorChooseNotifyHandler(onShapeColorChosen);
@@ -1179,21 +1173,16 @@ void on_btnZoomOut_clicked(GtkButton *button, gpointer user_data)
 
 void on_spinImageSize_value_changed(GtkSpinButton *spin, gpointer user_data)
 {
-    gdouble translateXfactor = 0.5, translateYfactor = 0.5;
     WilqpaintWindow *win;
     WilqpaintWindowPrivate *priv;
 
     win = WILQPAINT_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(spin)));
     priv = wilqpaint_window_get_instance_private(win);
     if( priv->shapeControlsSetInProgress == 0 ) {
-        if( gtk_toggle_button_get_active(priv->marginLeft) )
-            translateXfactor = 1.0;
-        else if( gtk_toggle_button_get_active(priv->marginRight) )
-            translateXfactor = 0.0;
-        else if( gtk_toggle_button_get_active(priv->marginTop) )
-            translateYfactor = 1.0;
-        else if( gtk_toggle_button_get_active(priv->marginBottom) )
-            translateYfactor = 0.0;
+        gdouble translateXfactor =
+            gtk_toggle_button_get_active(priv->marginLeft) ? 1.0 : 0.0;
+        gdouble translateYfactor = 
+            gtk_toggle_button_get_active(priv->marginTop) ? 1.0 : 0.0;
         di_setSize(priv->drawImage,
                 gtk_spin_button_get_value(priv->spinImageWidth),
                 gtk_spin_button_get_value(priv->spinImageHeight),

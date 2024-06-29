@@ -8,7 +8,7 @@ IMG = images/area.png images/arrow.png images/free.png images/imagesize.png \
 	  images/text.png images/transparency.png images/triangle.png \
 	  images/loupe.png images/minus.png images/plus.png \
 	  images/pin_left.png images/pin_right.png images/pin_top.png \
-	  images/pin_bottom.png images/pin_center.png \
+	  images/pin_bottom.png \
 	  images/wilqpaint.svg 
 
 bin_PROGRAMS = wilqpaint
